@@ -100,7 +100,7 @@ impl Cpu {
         todo!()
     }
 
-    fn read(&self, address: u32, bus: Bus) -> Result<u32, Exception> {
+    fn read(&self, address: u32, bus: &mut Bus) -> Result<u32, Exception> {
         let logical_address = match address {
             0x00000000..=0x7fffffff => MemoryArea::Kuseg(address),
             0x80000000..=0x9fffffff => MemoryArea::Kseg0(address),
@@ -111,15 +111,15 @@ impl Cpu {
         todo!()
     }
 
-    fn read_byte(&self, address: u32, bus: Bus) -> Result<u8, Exception> {
+    fn read_byte(&self, address: u32, bus: &mut Bus) -> Result<u8, Exception> {
         todo!()
     }
 
-    fn read_halfword(&self, address: u32, bus: Bus) -> Result<u16, Exception> {
+    fn read_halfword(&self, address: u32, bus: &mut Bus) -> Result<u16, Exception> {
         todo!()
     }
 
-    fn read_word(&self, address: u32, bus: Bus) -> Result<u32, Exception> {
+    fn read_word(&self, address: u32, bus: &mut Bus) -> Result<u32, Exception> {
         todo!()
     }
 
@@ -128,28 +128,24 @@ impl Cpu {
         let b = self.register_file[rt as usize].read();
 
         // Overflow is detected for two's complement
-        let (res, overflow) = (a as i32).overflowing_add(b as i32);
-
-        if overflow {
-            Err(Exception::Overflow)
-        } else {
-            self.register_file[rd as usize].write(res as u32);
-            Ok(())
-        }
+        self.register_file[rd as usize].write(
+            (a as i32)
+                .checked_add(b as i32)
+                .ok_or(Exception::Overflow)? as u32,
+        );
+        Ok(())
     }
 
     fn addi(&mut self, rs: u8, rt: u8, immediate: u16) -> Result<(), Exception> {
         let a = self.register_file[rs as usize].read();
 
         // sign extend the immediate to 32 bits
-        let (res, overflow) = (a as i32).overflowing_add(immediate as i16 as i32);
-
-        if overflow {
-            Err(Exception::Overflow)
-        } else {
-            self.register_file[rt as usize].write(res as u32);
-            Ok(())
-        }
+        self.register_file[rt as usize].write(
+            (a as i32)
+                .checked_add(immediate as i16 as i32)
+                .ok_or(Exception::Overflow)? as u32,
+        );
+        Ok(())
     }
 
     fn addiu(&mut self, rs: u8, rt: u8, immediate: u16) {
@@ -312,6 +308,9 @@ impl Cpu {
         self.register_file[rd as usize].write(self.pc + 8);
         self.pc = target;
 
+        // TODO: when is this exception trapped?
+        // in this instruction
+        // or when fetching the next
         if target & 0x00000003 != 0 {
             Err(Exception::AddressErrorLoad)
         } else {
@@ -324,6 +323,9 @@ impl Cpu {
 
         self.pc = target;
 
+        // TODO: when is this exception trapped?
+        // in this instruction
+        // or when fetching the next
         if target & 0x00000003 != 0 {
             Err(Exception::AddressErrorLoad)
         } else {
@@ -331,71 +333,53 @@ impl Cpu {
         }
     }
 
-    fn lb(&mut self, base: u8, rt: u8, offset: u16, bus: Bus) -> Result<(), Exception> {
+    fn lb(&mut self, base: u8, rt: u8, offset: u16, bus: &mut Bus) -> Result<(), Exception> {
         let a = self.register_file[base as usize].read();
         let address = a.wrapping_add_signed(offset as i16 as i32);
-        match self.read_byte(address, bus) {
-            Ok(value) => {
-                self.register_file[rt as usize].write(value as i8 as i32 as u32);
-                Ok(())
-            },
-            Err(exception) => Err(exception),
-        }
+        let value = self.read_byte(address, bus)? as i8 as i32 as u32;
+
+        self.register_file[rt as usize].write(value);
+        Ok(())
     }
 
-    fn lbu(&mut self, base: u8, rt: u8, offset: u16, bus: Bus) -> Result<(), Exception> {
+    fn lbu(&mut self, base: u8, rt: u8, offset: u16, bus: &mut Bus) -> Result<(), Exception> {
         let a = self.register_file[base as usize].read();
         let address = a.wrapping_add_signed(offset as i16 as i32);
-        match self.read_byte(address, bus) {
-            Ok(value) => {
-                self.register_file[rt as usize].write(value as u32);
-                Ok(())
-            },
-            Err(exception) => Err(exception),
-        }
+        let value = self.read_byte(address, bus)? as u32;
+
+        self.register_file[rt as usize].write(value);
+        Ok(())
     }
 
-    fn lh(&mut self, base: u8, rt: u8, offset: u16, bus: Bus) -> Result<(), Exception> {
+    fn lh(&mut self, base: u8, rt: u8, offset: u16, bus: &mut Bus) -> Result<(), Exception> {
         let a = self.register_file[base as usize].read();
         let address = a.wrapping_add_signed(offset as i16 as i32);
+        let value = self.read_halfword(address, bus)? as i16 as i32 as u32;
 
-        match self.read_halfword(address, bus) {
-            Ok(value) => {
-                self.register_file[rt as usize].write(value as i16 as i32 as u32);
-                Ok(())
-            },
-            Err(exception) => Err(exception),
-        }
+        self.register_file[rt as usize].write(value);
+        Ok(())
     }
 
-    fn lhu(&mut self, base: u8, rt: u8, offset: u16, bus: Bus) -> Result<(), Exception> {
+    fn lhu(&mut self, base: u8, rt: u8, offset: u16, bus: &mut Bus) -> Result<(), Exception> {
         let a = self.register_file[base as usize].read();
         let address = a.wrapping_add_signed(offset as i16 as i32);
+        let value = self.read_halfword(address, bus)? as u32;
 
-        match self.read_halfword(address, bus) {
-            Ok(value) => {
-                self.register_file[rt as usize].write(value as u32);
-                Ok(())
-            },
-            Err(exception) => Err(exception),
-        }
+        self.register_file[rt as usize].write(value);
+        Ok(())
     }
 
     fn lui(&mut self, rt: u8, immediate: u16) {
         self.register_file[rt as usize].write((immediate as u32) << 16);
     }
 
-    fn lw(&mut self, base: u8, rt: u8, offset: u16, bus: Bus) -> Result<(), Exception> {
+    fn lw(&mut self, base: u8, rt: u8, offset: u16, bus: &mut Bus) -> Result<(), Exception> {
         let a = self.register_file[base as usize].read();
         let address = a.wrapping_add_signed(offset as i16 as i32);
+        let value = self.read_word(address, bus)?;
 
-        match self.read_word(address, bus) {
-            Ok(value) => {
-                self.register_file[rt as usize].write(value);
-                Ok(())
-            },
-            Err(exception) => Err(exception)
-        }
+        self.register_file[rt as usize].write(value);
+        Ok(())
     }
 }
 
@@ -751,7 +735,7 @@ mod test {
     #[test]
     fn lui() {
         let mut cpu = Cpu::new();
-        
+
         cpu.lui(1, 0xffff);
         assert_eq!(cpu.register_file[1].read(), 0xffff0000);
     }
