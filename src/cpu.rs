@@ -1,3 +1,5 @@
+use crate::Bus;
+
 #[derive(Debug, PartialEq)]
 enum Exception {
     Reset,
@@ -8,10 +10,17 @@ enum Exception {
     Overflow,
     SystemCall,
     Breakpoint,
-    ReservedInstructio,
+    ReservedInstruction,
     CoprocessorUnusable,
     Interrupt,
     Debug,
+}
+
+enum MemoryArea {
+    Kuseg(u32),
+    Kseg0(u32),
+    Kseg1(u32),
+    Kseg2(u32),
 }
 
 enum Register {
@@ -26,7 +35,7 @@ impl Register {
             Register::Normal(value) => *value,
         }
     }
-    
+
     fn write(&mut self, value: u32) {
         match self {
             Register::Zero => (),
@@ -78,7 +87,7 @@ impl Cpu {
             Register::Normal(0),
             Register::Normal(0),
         ];
-        
+
         Cpu {
             register_file,
             hi: 0,
@@ -91,7 +100,30 @@ impl Cpu {
         todo!()
     }
 
-    fn add(&mut self, rs: u8, rt: u8, rd: u8) -> Option<Exception> {
+    fn read(&self, address: u32, bus: Bus) -> Result<u32, Exception> {
+        let logical_address = match address {
+            0x00000000..=0x7fffffff => MemoryArea::Kuseg(address),
+            0x80000000..=0x9fffffff => MemoryArea::Kseg0(address),
+            0xa0000000..=0xbfffffff => MemoryArea::Kseg1(address),
+            0xc0000000..=0xffffffff => MemoryArea::Kseg2(address),
+        };
+
+        todo!()
+    }
+
+    fn read_byte(&self, address: u32, bus: Bus) -> Result<u8, Exception> {
+        todo!()
+    }
+
+    fn read_halfword(&self, address: u32, bus: Bus) -> Result<u16, Exception> {
+        todo!()
+    }
+
+    fn read_word(&self, address: u32, bus: Bus) -> Result<u32, Exception> {
+        todo!()
+    }
+
+    fn add(&mut self, rs: u8, rt: u8, rd: u8) -> Result<(), Exception> {
         let a = self.register_file[rs as usize].read();
         let b = self.register_file[rt as usize].read();
 
@@ -99,24 +131,24 @@ impl Cpu {
         let (res, overflow) = (a as i32).overflowing_add(b as i32);
 
         if overflow {
-            Some(Exception::Overflow)
+            Err(Exception::Overflow)
         } else {
             self.register_file[rd as usize].write(res as u32);
-            None
+            Ok(())
         }
     }
 
-    fn addi(&mut self, rs: u8, rt: u8, immediate: u16) -> Option<Exception> {
+    fn addi(&mut self, rs: u8, rt: u8, immediate: u16) -> Result<(), Exception> {
         let a = self.register_file[rs as usize].read();
 
         // sign extend the immediate to 32 bits
         let (res, overflow) = (a as i32).overflowing_add(immediate as i16 as i32);
 
         if overflow {
-            Some(Exception::Overflow)
+            Err(Exception::Overflow)
         } else {
             self.register_file[rt as usize].write(res as u32);
-            None
+            Ok(())
         }
     }
 
@@ -201,7 +233,7 @@ impl Cpu {
 
     fn bgezal(&mut self, rs: u8, offset: u16) {
         // link register, r31 is loaded with the address of the instruction after the delay slot
-        self.register_file[31].write(self.pc + 4);
+        self.register_file[31].write(self.pc + 8);
         if self.register_file[rs as usize].read() as i32 >= 0 {
             let target = (offset as i16 as i32) << 2;
             self.pc = self.pc.wrapping_add_signed(target);
@@ -231,7 +263,7 @@ impl Cpu {
 
     fn bltzal(&mut self, rs: u8, offset: u16) {
         // link register, r31 is loaded with the address of the instruction after the delay slot
-        self.register_file[31].write(self.pc + 4);
+        self.register_file[31].write(self.pc + 8);
         if (self.register_file[rs as usize].read() as i32) < 0 {
             let target = (offset as i16 as i32) << 2;
             self.pc = self.pc.wrapping_add_signed(target);
@@ -255,7 +287,116 @@ impl Cpu {
 
         self.lo = a.checked_div(b).unwrap_or(0) as u32;
         self.hi = a.checked_rem(b).unwrap_or(0) as u32;
-    } 
+    }
+
+    fn divu(&mut self, rs: u8, rt: u8) {
+        let a = self.register_file[rs as usize].read();
+        let b = self.register_file[rt as usize].read();
+
+        self.lo = a.checked_div(b).unwrap_or(0);
+        self.hi = a.checked_rem(b).unwrap_or(0);
+    }
+
+    fn j(&mut self, target: u32) {
+        self.pc = (self.pc & 0xf0000000) | (target << 2);
+    }
+
+    fn jal(&mut self, target: u32) {
+        self.register_file[31].write(self.pc + 8);
+        self.pc = (self.pc & 0xf0000000) | (target << 2);
+    }
+
+    fn jalr(&mut self, rs: u8, rd: u8) -> Result<(), Exception> {
+        let target = self.register_file[rs as usize].read();
+
+        self.register_file[rd as usize].write(self.pc + 8);
+        self.pc = target;
+
+        if target & 0x00000003 != 0 {
+            Err(Exception::AddressErrorLoad)
+        } else {
+            Ok(())
+        }
+    }
+
+    fn jr(&mut self, rs: u8) -> Result<(), Exception> {
+        let target = self.register_file[rs as usize].read();
+
+        self.pc = target;
+
+        if target & 0x00000003 != 0 {
+            Err(Exception::AddressErrorLoad)
+        } else {
+            Ok(())
+        }
+    }
+
+    fn lb(&mut self, base: u8, rt: u8, offset: u16, bus: Bus) -> Result<(), Exception> {
+        let a = self.register_file[base as usize].read();
+        let address = a.wrapping_add_signed(offset as i16 as i32);
+        match self.read_byte(address, bus) {
+            Ok(value) => {
+                self.register_file[rt as usize].write(value as i8 as i32 as u32);
+                Ok(())
+            },
+            Err(exception) => Err(exception),
+        }
+    }
+
+    fn lbu(&mut self, base: u8, rt: u8, offset: u16, bus: Bus) -> Result<(), Exception> {
+        let a = self.register_file[base as usize].read();
+        let address = a.wrapping_add_signed(offset as i16 as i32);
+        match self.read_byte(address, bus) {
+            Ok(value) => {
+                self.register_file[rt as usize].write(value as u32);
+                Ok(())
+            },
+            Err(exception) => Err(exception),
+        }
+    }
+
+    fn lh(&mut self, base: u8, rt: u8, offset: u16, bus: Bus) -> Result<(), Exception> {
+        let a = self.register_file[base as usize].read();
+        let address = a.wrapping_add_signed(offset as i16 as i32);
+
+        match self.read_halfword(address, bus) {
+            Ok(value) => {
+                self.register_file[rt as usize].write(value as i16 as i32 as u32);
+                Ok(())
+            },
+            Err(exception) => Err(exception),
+        }
+    }
+
+    fn lhu(&mut self, base: u8, rt: u8, offset: u16, bus: Bus) -> Result<(), Exception> {
+        let a = self.register_file[base as usize].read();
+        let address = a.wrapping_add_signed(offset as i16 as i32);
+
+        match self.read_halfword(address, bus) {
+            Ok(value) => {
+                self.register_file[rt as usize].write(value as u32);
+                Ok(())
+            },
+            Err(exception) => Err(exception),
+        }
+    }
+
+    fn lui(&mut self, rt: u8, immediate: u16) {
+        self.register_file[rt as usize].write((immediate as u32) << 16);
+    }
+
+    fn lw(&mut self, base: u8, rt: u8, offset: u16, bus: Bus) -> Result<(), Exception> {
+        let a = self.register_file[base as usize].read();
+        let address = a.wrapping_add_signed(offset as i16 as i32);
+
+        match self.read_word(address, bus) {
+            Ok(value) => {
+                self.register_file[rt as usize].write(value);
+                Ok(())
+            },
+            Err(exception) => Err(exception)
+        }
+    }
 }
 
 #[cfg(test)]
@@ -268,7 +409,7 @@ mod test {
         cpu.register_file[1].write(60);
         cpu.register_file[2].write(9);
 
-        assert_eq!(cpu.add(1, 2, 3), None);
+        assert_eq!(cpu.add(1, 2, 3), Ok(()));
         assert_eq!(cpu.register_file[3].read(), 69);
     }
 
@@ -279,7 +420,7 @@ mod test {
         cpu.register_file[2].write(0x80000000);
         cpu.register_file[3].write(12);
 
-        assert_eq!(cpu.add(1, 2, 3), Some(Exception::Overflow));
+        assert_eq!(cpu.add(1, 2, 3), Err(Exception::Overflow));
         assert_eq!(cpu.register_file[3].read(), 12);
     }
 
@@ -288,7 +429,7 @@ mod test {
         let mut cpu = Cpu::new();
         cpu.register_file[1].write(60);
 
-        assert_eq!(cpu.addi(1, 2, 9), None);
+        assert_eq!(cpu.addi(1, 2, 9), Ok(()));
         assert_eq!(cpu.register_file[2].read(), 69);
     }
 
@@ -298,7 +439,7 @@ mod test {
         cpu.register_file[1].write(0x80000000);
         cpu.register_file[2].write(12);
 
-        assert_eq!(cpu.addi(1, 2, 0xffff), Some(Exception::Overflow));
+        assert_eq!(cpu.addi(1, 2, 0xffff), Err(Exception::Overflow));
         assert_eq!(cpu.register_file[2].read(), 12);
     }
 
@@ -390,7 +531,7 @@ mod test {
 
         cpu.bgezal(1, 25);
         assert_eq!(cpu.pc, 116);
-        assert_eq!(cpu.register_file[31].read(), 20);
+        assert_eq!(cpu.register_file[31].read(), 24);
     }
 
     #[test]
@@ -401,7 +542,7 @@ mod test {
 
         cpu.bgezal(1, 25);
         assert_eq!(cpu.pc, 16);
-        assert_eq!(cpu.register_file[31].read(), 20);
+        assert_eq!(cpu.register_file[31].read(), 24);
     }
 
     #[test]
@@ -472,7 +613,7 @@ mod test {
 
         cpu.bltzal(1, 25);
         assert_eq!(cpu.pc, 116);
-        assert_eq!(cpu.register_file[31].read(), 20);
+        assert_eq!(cpu.register_file[31].read(), 24);
     }
 
     #[test]
@@ -483,7 +624,7 @@ mod test {
 
         cpu.bltzal(1, 25);
         assert_eq!(cpu.pc, 16);
-        assert_eq!(cpu.register_file[31].read(), 20);
+        assert_eq!(cpu.register_file[31].read(), 24);
     }
 
     #[test]
@@ -526,5 +667,92 @@ mod test {
 
         cpu.div(1, 2);
         assert_eq!((cpu.hi, cpu.lo), (0, 0));
+    }
+
+    #[test]
+    fn divu() {
+        let mut cpu = Cpu::new();
+        cpu.register_file[1].write(5);
+        cpu.register_file[2].write(2);
+
+        cpu.divu(1, 2);
+        assert_eq!((cpu.hi, cpu.lo), (1, 2));
+    }
+
+    #[test]
+    fn divu_zero() {
+        let mut cpu = Cpu::new();
+        cpu.register_file[1].write(6);
+        cpu.register_file[2].write(0);
+
+        cpu.divu(1, 2);
+        assert_eq!((cpu.hi, cpu.lo), (0, 0));
+    }
+
+    #[test]
+    fn j() {
+        let mut cpu = Cpu::new();
+        cpu.pc = 0xbfc00000;
+
+        cpu.j(0x03f00054);
+        assert_eq!(cpu.pc, 0xbfc00150);
+    }
+
+    #[test]
+    fn jal() {
+        let mut cpu = Cpu::new();
+        cpu.pc = 0xbfc00000;
+
+        cpu.jal(0x03f00054);
+        assert_eq!(cpu.pc, 0xbfc00150);
+        assert_eq!(cpu.register_file[31].read(), 0xbfc00008);
+    }
+
+    #[test]
+    fn jalr() {
+        let mut cpu = Cpu::new();
+        cpu.register_file[1].write(0xfffffffc);
+        cpu.pc = 0;
+
+        assert_eq!(cpu.jalr(1, 2), Ok(()));
+        assert_eq!(cpu.pc, 0xfffffffc);
+        assert_eq!(cpu.register_file[2].read(), 0x00000008);
+    }
+
+    #[test]
+    fn jalr_exception() {
+        let mut cpu = Cpu::new();
+        cpu.register_file[1].write(0xfffffffd);
+        cpu.pc = 0;
+
+        assert_eq!(cpu.jalr(1, 2), Err(Exception::AddressErrorLoad));
+        assert_eq!(cpu.pc, 0xfffffffd);
+        assert_eq!(cpu.register_file[2].read(), 0x00000008);
+    }
+
+    #[test]
+    fn jr() {
+        let mut cpu = Cpu::new();
+        cpu.register_file[1].write(0xfffffffc);
+
+        assert_eq!(cpu.jr(1), Ok(()));
+        assert_eq!(cpu.pc, 0xfffffffc);
+    }
+
+    #[test]
+    fn jr_exception() {
+        let mut cpu = Cpu::new();
+        cpu.register_file[1].write(0xfffffffd);
+
+        assert_eq!(cpu.jr(1), Err(Exception::AddressErrorLoad));
+        assert_eq!(cpu.pc, 0xfffffffd);
+    }
+
+    #[test]
+    fn lui() {
+        let mut cpu = Cpu::new();
+        
+        cpu.lui(1, 0xffff);
+        assert_eq!(cpu.register_file[1].read(), 0xffff0000);
     }
 }
