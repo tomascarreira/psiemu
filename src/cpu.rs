@@ -100,7 +100,7 @@ impl Cpu {
         todo!()
     }
 
-    fn read(&self, address: u32, bus: &mut Bus) -> Result<u32, Exception> {
+    fn read(&self, address: u32, bus: &Bus) -> Result<u32, Exception> {
         let logical_address = match address {
             0x00000000..=0x7fffffff => MemoryArea::Kuseg(address),
             0x80000000..=0x9fffffff => MemoryArea::Kseg0(address),
@@ -111,38 +111,56 @@ impl Cpu {
         todo!()
     }
 
-    fn read_byte(&self, address: u32, bus: &mut Bus) -> Result<u8, Exception> {
+    fn write(&self, address: u32, value: u32, bus: &mut Bus) -> Result<(), Exception> {
+        let logical_address = match address {
+            0x00000000..=0x7fffffff => MemoryArea::Kuseg(address),
+            0x80000000..=0x9fffffff => MemoryArea::Kseg0(address),
+            0xa0000000..=0xbfffffff => MemoryArea::Kseg1(address),
+            0xc0000000..=0xffffffff => MemoryArea::Kseg2(address),
+        };
+
         todo!()
     }
 
-    fn read_halfword(&self, address: u32, bus: &mut Bus) -> Result<u16, Exception> {
+    fn read_byte(&self, address: u32, bus: &Bus) -> Result<u8, Exception> {
         todo!()
     }
 
-    fn read_word(&self, address: u32, bus: &mut Bus) -> Result<u32, Exception> {
+    fn read_halfword(&self, address: u32, bus: &Bus) -> Result<u16, Exception> {
+        todo!()
+    }
+
+    fn read_word(&self, address: u32, bus: &Bus) -> Result<u32, Exception> {
+        todo!()
+    }
+
+    fn write_byte(&self, address: u32, value: u8, bus: &Bus) -> Result<(), Exception> {
+        todo!()
+    }
+
+    fn write_halfword(&self, address: u32, value: u16, bus: &Bus) -> Result<(), Exception> {
+        todo!()
+    }
+
+    fn write_word(&self, address: u32, value: u32, bus: &Bus) -> Result<(), Exception> {
         todo!()
     }
 
     fn add(&mut self, rs: u8, rt: u8, rd: u8) -> Result<(), Exception> {
-        let a = self.register_file[rs as usize].read();
-        let b = self.register_file[rt as usize].read();
+        let a = self.register_file[rs as usize].read() as i32;
+        let b = self.register_file[rt as usize].read() as i32;
 
         // Overflow is detected for two's complement
-        self.register_file[rd as usize].write(
-            (a as i32)
-                .checked_add(b as i32)
-                .ok_or(Exception::Overflow)? as u32,
-        );
+        self.register_file[rd as usize].write(a.checked_add(b).ok_or(Exception::Overflow)? as u32);
         Ok(())
     }
 
     fn addi(&mut self, rs: u8, rt: u8, immediate: u16) -> Result<(), Exception> {
-        let a = self.register_file[rs as usize].read();
+        let a = self.register_file[rs as usize].read() as i32;
 
         // sign extend the immediate to 32 bits
         self.register_file[rt as usize].write(
-            (a as i32)
-                .checked_add(immediate as i16 as i32)
+            a.checked_add(immediate as i16 as i32)
                 .ok_or(Exception::Overflow)? as u32,
         );
         Ok(())
@@ -380,6 +398,228 @@ impl Cpu {
 
         self.register_file[rt as usize].write(value);
         Ok(())
+    }
+
+    fn lwl(&mut self, base: u8, rt: u8, offset: u16, bus: &mut Bus) -> Result<(), Exception> {
+        let a = self.register_file[base as usize].read();
+        let address = a.wrapping_add_signed(offset as i16 as i32);
+        let value = self.read_word(address & 0xfffffffc, bus)?;
+
+        let index = address & 0x00000003;
+        let mask = 0xffffffff >> (index * 8);
+        let value = (value & mask) << (index * 8);
+
+        let mask = 0xffffffff >> ((!index + 1) * 8);
+        let value = value | (self.register_file[rt as usize].read() & mask);
+
+        self.register_file[rt as usize].write(value);
+        Ok(())
+    }
+
+    fn lwr(&mut self, base: u8, rt: u8, offset: u16, bus: &mut Bus) -> Result<(), Exception> {
+        let a = self.register_file[base as usize].read();
+        let address = a.wrapping_add_signed(offset as i16 as i32);
+        let value = self.read_word(address & 0xfffffffc, bus)?;
+
+        let index = !address & 0x00000003;
+        let mask = 0xffffffff << (index * 8);
+        let value = (value & mask) >> (index * 8);
+
+        let mask = 0xffffffff << ((!index + 1) * 8);
+        let value = (self.register_file[rt as usize].read() & mask) | value;
+
+        self.register_file[rt as usize].write(value);
+        Ok(())
+    }
+
+    fn mfhi(&mut self, rd: u8) {
+        self.register_file[rd as usize].write(self.hi);
+    }
+
+    fn mflo(&mut self, rd: u8) {
+        self.register_file[rd as usize].write(self.lo);
+    }
+
+    fn mthi(&mut self, rs: u8) {
+        self.hi = self.register_file[rs as usize].read();
+    }
+
+    fn mtlo(&mut self, rs: u8) {
+        self.lo = self.register_file[rs as usize].read();
+    }
+
+    fn mult(&mut self, rs: u8, rt: u8) {
+        let a = self.register_file[rs as usize].read() as i32 as i64;
+        let b = self.register_file[rt as usize].read() as i32 as i64;
+
+        let res = a * b;
+        self.lo = res as u32;
+        self.hi = (res >> 32) as u32;
+    }
+
+    fn multu(&mut self, rs: u8, rt: u8) {
+        let a = self.register_file[rs as usize].read() as u64;
+        let b = self.register_file[rt as usize].read() as u64;
+
+        let res = a * b;
+        self.lo = res as u32;
+        self.hi = (res >> 32) as u32;
+    }
+
+    fn nor(&mut self, rs: u8, rt: u8, rd: u8) {
+        let a = self.register_file[rs as usize].read();
+        let b = self.register_file[rt as usize].read();
+
+        self.register_file[rd as usize].write(!(a | b));
+    }
+
+    fn or(&mut self, rs: u8, rt: u8, rd: u8) {
+        let a = self.register_file[rs as usize].read();
+        let b = self.register_file[rt as usize].read();
+
+        self.register_file[rd as usize].write(a | b);
+    }
+
+    fn ori(&mut self, rs: u8, rt: u8, immediate: u16) {
+        let a = self.register_file[rs as usize].read();
+        let b = immediate as u32;
+
+        self.register_file[rt as usize].write(a | b);
+    }
+
+    fn sb(&self, base: u8, rt: u8, offset: u16, bus: &Bus) -> Result<(), Exception> {
+        let a = self.register_file[base as usize].read();
+        let address = a.wrapping_add_signed(offset as i16 as i32);
+
+        let value = self.register_file[rt as usize].read() as u8;
+        self.write_byte(address, value, bus)?;
+        Ok(())
+    }
+
+    fn sh(&self, base: u8, rt: u8, offset: u16, bus: &Bus) -> Result<(), Exception> {
+        let a = self.register_file[base as usize].read();
+        let address = a.wrapping_add_signed(offset as i16 as i32);
+
+        let value = self.register_file[rt as usize].read() as u16;
+        self.write_halfword(address, value, bus)?;
+        Ok(())
+    }
+
+    fn sll(&mut self, rt: u8, rd: u8, sa: u8) {
+        let a = self.register_file[rt as usize].read();
+
+        self.register_file[rd as usize].write(a << sa);
+    }
+
+    fn sllv(&mut self, rs: u8, rt: u8, rd: u8) {
+        let a = self.register_file[rt as usize].read();
+        let sa = self.register_file[rs as usize].read();
+
+        self.register_file[rd as usize].write(a << sa);
+    }
+
+    fn slt(&mut self, rs: u8, rt: u8, rd: u8) {
+        let a = self.register_file[rs as usize].read() as i32;
+        let b = self.register_file[rt as usize].read() as i32;
+
+        self.register_file[rd as usize].write((a < b) as u32);
+    }
+
+    fn slti(&mut self, rs: u8, rt: u8, immediate: u16) {
+        let a = self.register_file[rs as usize].read() as i32;
+        let b = immediate as i16 as i32;
+
+        self.register_file[rt as usize].write((a < b) as u32);
+    }
+
+    fn sltiu(&mut self, rs: u8, rt: u8, immediate: u16) {
+        let a = self.register_file[rs as usize].read();
+        let b = immediate as u32;
+
+        self.register_file[rt as usize].write((a < b) as u32);
+    }
+
+    fn sltu(&mut self, rs: u8, rt: u8, rd: u8) {
+        let a = self.register_file[rs as usize].read();
+        let b = self.register_file[rt as usize].read();
+
+        self.register_file[rd as usize].write((a < b) as u32);
+    }
+
+    fn sra(&mut self, rt: u8, rd: u8, sa: u8) {
+        let a = self.register_file[rt as usize].read() as i32;
+
+        self.register_file[rd as usize].write((a >> sa) as u32);
+    }
+
+    fn srav(&mut self, rs: u8, rt: u8, rd: u8) {
+        let a = self.register_file[rt as usize].read() as i32;
+        let sa = self.register_file[rs as usize].read();
+
+        self.register_file[rd as usize].write((a >> sa) as u32);
+    }
+
+    fn srl(&mut self, rt: u8, rd: u8, sa: u8) {
+        let a = self.register_file[rt as usize].read();
+
+        self.register_file[rd as usize].write(a >> sa);
+    }
+
+    fn srlv(&mut self, rs: u8, rt: u8, rd: u8) {
+        let a = self.register_file[rt as usize].read();
+        let sa = self.register_file[rs as usize].read();
+
+        self.register_file[rd as usize].write(a >> sa);
+    }
+
+    fn sub(&mut self, rs: u8, rt: u8, rd: u8) -> Result<(), Exception> {
+        let a = self.register_file[rs as usize].read() as i32;
+        let b = self.register_file[rt as usize].read() as i32;
+
+        self.register_file[rd as usize].write(a.checked_sub(b).ok_or(Exception::Overflow)? as u32);
+
+        Ok(())
+    }
+
+    fn subu(&mut self, rs: u8, rt: u8, rd: u8) {
+        let a = self.register_file[rs as usize].read();
+        let b = self.register_file[rt as usize].read();
+
+        self.register_file[rd as usize].write(a.wrapping_sub(b));
+    }
+
+    fn sw(&self, base: u8, rt: u8, offset: u16, bus: &mut Bus) -> Result<(), Exception> {
+        let a = self.register_file[base as usize].read();
+        let address = a.wrapping_add_signed(offset as i16 as i32);
+
+        let value = self.register_file[rt as usize].read();
+        self.write_word(address, value, bus)?;
+        Ok(())
+    }
+
+    fn swl(&self, base: u8, rt: u8, offset: u16) -> Result<(), Exception> {
+        todo!()
+    }
+
+    fn swr(&self, base: u8, rt: u8, offset: u16) -> Result<(), Exception> {
+        todo!()
+    }
+
+    fn syscall(&self) -> Exception {
+        Exception::SystemCall
+    }
+
+    fn xor(&mut self, rs: u8, rt: u8, rd: u8) {
+        let a = self.register_file[rs as usize].read();
+        let b = self.register_file[rt as usize].read();
+
+        self.register_file[rd as usize].write(a ^ b);
+    }
+
+    fn xori(&mut self, rs: u8, rt: u8, immediate: u16) {
+        let a = self.register_file[rs as usize].read();
+
+        self.register_file[rt as usize].write(a ^ immediate as u32);
     }
 }
 
@@ -738,5 +978,293 @@ mod test {
 
         cpu.lui(1, 0xffff);
         assert_eq!(cpu.register_file[1].read(), 0xffff0000);
+    }
+
+    #[test]
+    fn mfhi() {
+        let mut cpu = Cpu::new();
+        cpu.hi = 69;
+
+        cpu.mfhi(1);
+        assert_eq!(cpu.register_file[1].read(), 69);
+    }
+
+    #[test]
+    fn mflo() {
+        let mut cpu = Cpu::new();
+        cpu.lo = 69;
+
+        cpu.mflo(1);
+        assert_eq!(cpu.register_file[1].read(), 69);
+    }
+
+    #[test]
+    fn mthi() {
+        let mut cpu = Cpu::new();
+        cpu.register_file[1].write(33);
+
+        cpu.mthi(1);
+        assert_eq!(cpu.hi, 33);
+    }
+
+    #[test]
+    fn mtlo() {
+        let mut cpu = Cpu::new();
+        cpu.register_file[1].write(33);
+
+        cpu.mtlo(1);
+        assert_eq!(cpu.lo, 33);
+    }
+
+    #[test]
+    fn mult() {
+        let mut cpu = Cpu::new();
+        cpu.register_file[1].write(-1i32 as u32);
+        cpu.register_file[2].write(-2i32 as u32);
+
+        cpu.mult(1, 2);
+        assert_eq!(cpu.lo, 2);
+        assert_eq!(cpu.hi, 0);
+    }
+
+    #[test]
+    fn mult_hi_not_zero() {
+        let mut cpu = Cpu::new();
+        cpu.register_file[1].write(0x7fffffff);
+        cpu.register_file[2].write(0x7fffffff);
+
+        cpu.mult(1, 2);
+        assert_eq!(cpu.lo, 0x00000001);
+        assert_eq!(cpu.hi, 0x3fffffff);
+    }
+
+    #[test]
+    fn multu() {
+        let mut cpu = Cpu::new();
+        cpu.register_file[1].write(3);
+        cpu.register_file[2].write(4);
+
+        cpu.mult(1, 2);
+        assert_eq!(cpu.lo, 12);
+        assert_eq!(cpu.hi, 0);
+    }
+
+    #[test]
+    fn multu_hi_not_zero() {
+        let mut cpu = Cpu::new();
+        cpu.register_file[1].write(2_000_000_000);
+        cpu.register_file[2].write(4);
+
+        cpu.mult(1, 2);
+        assert_eq!(cpu.lo, 0xDCD65000);
+        assert_eq!(cpu.hi, 0x00000001);
+    }
+
+    #[test]
+    fn nor() {
+        let mut cpu = Cpu::new();
+        cpu.register_file[1].write(0x01234567);
+        cpu.register_file[2].write(0xfedcba98);
+
+        cpu.nor(1, 2, 3);
+        assert_eq!(cpu.register_file[3].read(), 0);
+    }
+
+    #[test]
+    fn or() {
+        let mut cpu = Cpu::new();
+        cpu.register_file[1].write(0x01234567);
+        cpu.register_file[2].write(0xfedcba98);
+
+        cpu.or(1, 2, 3);
+        assert_eq!(cpu.register_file[3].read(), 0xffffffff);
+    }
+
+    #[test]
+    fn ori() {
+        let mut cpu = Cpu::new();
+        cpu.register_file[1].write(0x01234567);
+
+        cpu.ori(1, 2, 0xba98);
+        assert_eq!(cpu.register_file[2].read(), 0x0123ffff);
+    }
+
+    #[test]
+    fn sll() {
+        let mut cpu = Cpu::new();
+        cpu.register_file[1].write(2);
+
+        cpu.sll(1, 2, 1);
+        assert_eq!(cpu.register_file[2].read(), 4);
+    }
+
+    #[test]
+    fn sllv() {
+        let mut cpu = Cpu::new();
+        cpu.register_file[1].write(2);
+        cpu.register_file[2].write(1);
+
+        cpu.sllv(2, 1, 3);
+        assert_eq!(cpu.register_file[3].read(), 4);
+    }
+
+    #[test]
+    fn slt() {
+        let mut cpu = Cpu::new();
+        cpu.register_file[1].write(-2i32 as u32);
+        cpu.register_file[2].write(-1i32 as u32);
+
+        cpu.slt(1, 2, 3);
+        assert_eq!(cpu.register_file[3].read(), 1);
+
+        cpu.slt(2, 1, 3);
+        assert_eq!(cpu.register_file[3].read(), 0);
+
+        cpu.slt(1, 1, 3);
+        assert_eq!(cpu.register_file[3].read(), 0);
+    }
+
+    #[test]
+    fn slti() {
+        let mut cpu = Cpu::new();
+        cpu.register_file[1].write(-2i32 as u32);
+
+        cpu.slti(1, 2, -1i16 as u16);
+        assert_eq!(cpu.register_file[2].read(), 1);
+
+        cpu.slti(1, 2, -3i16 as u16);
+        assert_eq!(cpu.register_file[2].read(), 0);
+
+        cpu.slti(1, 2, -2i16 as u16);
+        assert_eq!(cpu.register_file[2].read(), 0);
+    }
+
+    #[test]
+    fn sltiu() {
+        let mut cpu = Cpu::new();
+        cpu.register_file[1].write(1);
+
+        cpu.slti(1, 2, 2);
+        assert_eq!(cpu.register_file[2].read(), 1);
+
+        cpu.slti(1, 2, 0);
+        assert_eq!(cpu.register_file[2].read(), 0);
+
+        cpu.slti(1, 2, 1);
+        assert_eq!(cpu.register_file[2].read(), 0);
+    }
+
+    #[test]
+    fn sltu() {
+        let mut cpu = Cpu::new();
+        cpu.register_file[1].write(1);
+        cpu.register_file[2].write(2);
+
+        cpu.slt(1, 2, 3);
+        assert_eq!(cpu.register_file[3].read(), 1);
+
+        cpu.slt(2, 1, 3);
+        assert_eq!(cpu.register_file[3].read(), 0);
+
+        cpu.slt(1, 1, 3);
+        assert_eq!(cpu.register_file[3].read(), 0);
+    }
+
+    #[test]
+    fn sra() {
+        let mut cpu = Cpu::new();
+        cpu.register_file[1].write(-4i32 as u32);
+
+        cpu.sra(1, 2, 1);
+        assert_eq!(cpu.register_file[2].read(), -2i32 as u32);
+
+        cpu.register_file[1].write(16);
+
+        cpu.sra(1, 2, 2);
+        assert_eq!(cpu.register_file[2].read(), 4);
+    }
+
+    #[test]
+    fn srav() {
+        let mut cpu = Cpu::new();
+        cpu.register_file[1].write(-4i32 as u32);
+        cpu.register_file[2].write(1);
+
+        cpu.srav(2, 1, 3);
+        assert_eq!(cpu.register_file[3].read(), -2i32 as u32);
+
+        cpu.register_file[1].write(16);
+        cpu.register_file[2].write(2);
+
+        cpu.srav(2, 1, 3);
+        assert_eq!(cpu.register_file[3].read(), 4);
+    }
+
+    #[test]
+    fn srl() {
+        let mut cpu = Cpu::new();
+        cpu.register_file[1].write(4);
+
+        cpu.srl(1, 2, 1);
+        assert_eq!(cpu.register_file[2].read(), 2);
+    }
+
+    #[test]
+    fn srlv() {
+        let mut cpu = Cpu::new();
+        cpu.register_file[1].write(4);
+        cpu.register_file[2].write(1);
+
+        cpu.srlv(2, 1, 3);
+        assert_eq!(cpu.register_file[3].read(), 2);
+    }
+
+    #[test]
+    fn sub() {
+        let mut cpu = Cpu::new();
+        cpu.register_file[1].write(2);
+        cpu.register_file[2].write(1);
+
+        assert_eq!(cpu.sub(1, 2, 3), Ok(()));
+        assert_eq!(cpu.register_file[3].read(), 1);
+    }
+
+    #[test]
+    fn sub_with_overflow() {
+        let mut cpu = Cpu::new();
+        cpu.register_file[1].write(0x80000000);
+        cpu.register_file[2].write(1);
+
+        assert_eq!(cpu.sub(1, 2, 3), Err(Exception::Overflow));
+        assert_eq!(cpu.register_file[3].read(), 0);
+    }
+
+    #[test]
+    fn subu() {
+        let mut cpu = Cpu::new();
+        cpu.register_file[1].write(2);
+        cpu.register_file[2].write(1);
+
+        cpu.subu(1, 2, 3);
+        assert_eq!(cpu.register_file[3].read(), 1);
+    }
+
+    #[test]
+    fn xor() {
+        let mut cpu = Cpu::new();
+        cpu.register_file[1].write(0x01234567);
+        cpu.register_file[2].write(0xfedcba98);
+
+        cpu.xor(1, 2, 3);
+        assert_eq!(cpu.register_file[3].read(), 0xffffffff);
+    }
+
+    #[test]
+    fn xori() {
+        let mut cpu = Cpu::new();
+        cpu.register_file[1].write(0x01234567);
+
+        cpu.xori(1, 2, 0xba98);
+        assert_eq!(cpu.register_file[2].read(), 0x0123ffff);
     }
 }
