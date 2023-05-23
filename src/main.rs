@@ -1,4 +1,5 @@
 mod cpu;
+mod bus;
 
 struct Bus();
 
