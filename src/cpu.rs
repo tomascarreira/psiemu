@@ -994,11 +994,114 @@ mod test {
     }
 
     #[test]
+    fn lb() {
+        let mut cpu = Cpu::new();
+        let mut bus = Bus::new();
+        cpu.register_file[1].write(0);
+        bus.write_word(0, 0x0000ff00).unwrap();
+
+        assert_eq!(cpu.lb(1, 2, 1, &mut bus), Ok(()));
+        assert_eq!(cpu.register_file[2].read(), -1i32 as u32);
+    }
+
+    #[test]
+    fn lbu() {
+        let mut cpu = Cpu::new();
+        let mut bus = Bus::new();
+        cpu.register_file[1].write(0);
+        bus.write_word(0, 0x00ff0000).unwrap();
+
+        cpu.lbu(1, 2, 2, &mut bus).unwrap();
+        assert_eq!(cpu.register_file[2].read(), 0xff);
+    }
+
+    #[test]
+    fn lh() {
+        let mut cpu = Cpu::new();
+        let mut bus = Bus::new();
+        cpu.register_file[1].write(0);
+        bus.write_word(0, 0xffff0000).unwrap();
+
+        cpu.lh(1, 2, 2, &mut bus).unwrap();
+        assert_eq!(cpu.register_file[2].read(), -1i32 as u32);
+    }
+
+    #[test]
+    fn lhu() {
+        let mut cpu = Cpu::new();
+        let mut bus = Bus::new();
+        cpu.register_file[1].write(0);
+        bus.write_word(0, 0x0000ffff).unwrap();
+
+        cpu.lhu(1, 2, 0, &mut bus).unwrap();
+        assert_eq!(cpu.register_file[2].read(), 0xffff);
+    }
+
+    #[test]
     fn lui() {
         let mut cpu = Cpu::new();
 
         cpu.lui(1, 0xffff);
         assert_eq!(cpu.register_file[1].read(), 0xffff0000);
+    }
+
+    #[test]
+    fn lw() {
+        let mut cpu = Cpu::new();
+        let mut bus = Bus::new();
+        cpu.register_file[1].write(0);
+        bus.write_word(0, 0xffffffff).unwrap();
+
+        cpu.lw(1, 2, 0, &mut bus).unwrap();
+        assert_eq!(cpu.register_file[2].read(), 0xffffffff);
+    }
+
+    #[test]
+    fn lwl() {
+        let mut cpu = Cpu::new();
+        let mut bus = Bus::new();
+        cpu.register_file[1].write(0);
+        cpu.register_file[2].write(0x69696969);
+        bus.write_word(0, 0xffffffff).unwrap();
+
+        cpu.lwl(1, 2, 3, &mut bus).unwrap();
+        assert_eq!(cpu.register_file[2].read(), 0xff696969);
+
+        cpu.register_file[2].write(0x69696969);
+        cpu.lwl(1, 2, 2, &mut bus).unwrap();
+        assert_eq!(cpu.register_file[2].read(), 0xffff6969);
+
+        cpu.register_file[2].write(0x69696969);
+        cpu.lwl(1, 2, 1, &mut bus).unwrap();
+        assert_eq!(cpu.register_file[2].read(), 0xffffff69);
+
+        cpu.register_file[2].write(0x69696969);
+        cpu.lwl(1, 2, 0, &mut bus).unwrap();
+        assert_eq!(cpu.register_file[2].read(), 0xffffffff);
+    }
+
+    #[test]
+    fn lwr() {
+        let mut cpu = Cpu::new();
+        let mut bus = Bus::new();
+        cpu.register_file[1].write(0);
+        cpu.register_file[2].write(0x69696969);
+        bus.write_word(4, 0xffffffff).unwrap();
+
+        cpu.lwr(1, 2, 7, &mut bus).unwrap();
+        assert_eq!(cpu.register_file[2].read(), 0xffffffff);
+
+        cpu.register_file[2].write(0x69696969);
+        cpu.lwr(1, 2, 6, &mut bus).unwrap();
+        assert_eq!(cpu.register_file[2].read(), 0x69ffffff);
+
+        cpu.register_file[2].write(0x69696969);
+        cpu.lwr(1, 2, 5, &mut bus).unwrap();
+        assert_eq!(cpu.register_file[2].read(), 0x6969ffff);
+
+        cpu.register_file[2].write(0x69696969);
+        cpu.lwr(1, 2, 4, &mut bus).unwrap();
+        assert_eq!(cpu.register_file[2].read(), 0x696969ff);
     }
 
     #[test]
@@ -1108,6 +1211,36 @@ mod test {
 
         cpu.ori(1, 2, 0xba98);
         assert_eq!(cpu.register_file[2].read(), 0x0123ffff);
+    }
+
+    #[test]
+    fn sb() {
+        let mut cpu = Cpu::new();
+        let mut bus = Bus::new();
+        cpu.register_file[1].write(0);
+        cpu.register_file[2].write(0x0066aaff);
+
+        cpu.sb(1, 2, 3, &mut bus).unwrap();
+        assert_eq!(bus.read_byte(3), Ok(0xff));
+    }
+
+    #[test]
+    fn sh() {
+        let mut cpu = Cpu::new();
+        let mut bus = Bus::new();
+        cpu.register_file[1].write(0);
+        cpu.register_file[2].write(0x0066aaff);
+
+        cpu.sh(1, 2, 2, &mut bus).unwrap();
+        assert_eq!(bus.read_halfword(2), Ok(0xaaff));
+    }
+
+    #[test]
+    fn sh_not_aligned() {
+        let cpu = Cpu::new();
+        let mut bus = Bus::new();
+
+        assert_eq!(cpu.sh(1, 2, 1, &mut bus), Err(Exception::AddressErrorStore));
     }
 
     #[test]
@@ -1268,6 +1401,25 @@ mod test {
 
         cpu.subu(1, 2, 3);
         assert_eq!(cpu.register_file[3].read(), 1);
+    }
+
+    #[test]
+    fn sw() {
+        let mut cpu = Cpu::new();
+        let mut bus = Bus::new();
+        cpu.register_file[1].write(0);
+        cpu.register_file[2].write(0xffff8888);
+
+        cpu.sw(1, 2, 0, &mut bus).unwrap();
+        assert_eq!(bus.read_word(0), Ok(0xffff8888));
+    }
+
+    #[test]
+    fn sw_not_aligned() {
+        let cpu = Cpu::new();
+        let mut bus = Bus::new();
+
+        assert_eq!(cpu.sw(1, 2, 3, &mut bus), Err(Exception::AddressErrorStore));
     }
 
     #[test]
