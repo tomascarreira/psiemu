@@ -16,11 +16,22 @@ pub enum Exception {
     Debug,
 }
 
-enum MemoryArea {
+enum MemorySpace {
     Kuseg(u32),
     Kseg0(u32),
     Kseg1(u32),
     Kseg2(u32),
+}
+
+impl MemorySpace {
+    fn into_inner(self) -> u32 {
+        match self {
+            MemorySpace::Kuseg(address) => address,
+            MemorySpace::Kseg0(address) => address,
+            MemorySpace::Kseg1(address) => address,
+            MemorySpace::Kseg2(address) => address,
+        }
+    }
 }
 
 enum Register {
@@ -96,54 +107,53 @@ impl Cpu {
         }
     }
 
-    fn execute_instruction(&mut self) {
+    fn fetch_instruction(&mut self) -> Result<(), Exception> {
         todo!()
     }
 
-    fn read(&self, address: u32, bus: &Bus) -> Result<u32, Exception> {
-        let logical_address = match address {
-            0x00000000..=0x7fffffff => MemoryArea::Kuseg(address),
-            0x80000000..=0x9fffffff => MemoryArea::Kseg0(address),
-            0xa0000000..=0xbfffffff => MemoryArea::Kseg1(address),
-            0xc0000000..=0xffffffff => MemoryArea::Kseg2(address),
-        };
-
+    fn execute_instruction(&mut self) -> Result<(), Exception> {
         todo!()
     }
 
-    fn write(&self, address: u32, value: u32, bus: &mut Bus) -> Result<(), Exception> {
-        let logical_address = match address {
-            0x00000000..=0x7fffffff => MemoryArea::Kuseg(address),
-            0x80000000..=0x9fffffff => MemoryArea::Kseg0(address),
-            0xa0000000..=0xbfffffff => MemoryArea::Kseg1(address),
-            0xc0000000..=0xffffffff => MemoryArea::Kseg2(address),
-        };
-
-        todo!()
-    }
 
     fn read_byte(&self, address: u32, bus: &Bus) -> Result<u8, Exception> {
-        todo!()
+        bus.read_byte(translate_address(address).into_inner())
     }
 
     fn read_halfword(&self, address: u32, bus: &Bus) -> Result<u16, Exception> {
-        todo!()
+        if (address & 0x00000001) != 0 {
+            return Err(Exception::AddressErrorLoad);
+        }
+
+        bus.read_halfword(translate_address(address).into_inner())
     }
 
     fn read_word(&self, address: u32, bus: &Bus) -> Result<u32, Exception> {
-        todo!()
+        if (address & 0x00000003) != 0 {
+            return Err(Exception::AddressErrorLoad);
+        }
+
+        bus.read_word(translate_address(address).into_inner())
     }
 
-    fn write_byte(&self, address: u32, value: u8, bus: &Bus) -> Result<(), Exception> {
-        todo!()
+    fn write_byte(&self, address: u32, value: u8, bus: &mut Bus) -> Result<(), Exception> {
+        bus.write_byte(translate_address(address).into_inner(), value)
     }
 
-    fn write_halfword(&self, address: u32, value: u16, bus: &Bus) -> Result<(), Exception> {
-        todo!()
+    fn write_halfword(&self, address: u32, value: u16, bus: &mut Bus) -> Result<(), Exception> {
+        if (address & 0x00000001) != 0 {
+            return Err(Exception::AddressErrorLoad);
+        }
+
+        bus.write_halfword(translate_address(address).into_inner(), value)
     }
 
-    fn write_word(&self, address: u32, value: u32, bus: &Bus) -> Result<(), Exception> {
-        todo!()
+    fn write_word(&self, address: u32, value: u32, bus: &mut Bus) -> Result<(), Exception> {
+        if (address & 0x00000003) != 0 {
+            return Err(Exception::AddressErrorLoad);
+        }
+
+        bus.write_word(translate_address(address).into_inner(), value)
     }
 
     fn add(&mut self, rs: u8, rt: u8, rd: u8) -> Result<(), Exception> {
@@ -487,7 +497,7 @@ impl Cpu {
         self.register_file[rt as usize].write(a | b);
     }
 
-    fn sb(&self, base: u8, rt: u8, offset: u16, bus: &Bus) -> Result<(), Exception> {
+    fn sb(&self, base: u8, rt: u8, offset: u16, bus: &mut Bus) -> Result<(), Exception> {
         let a = self.register_file[base as usize].read();
         let address = a.wrapping_add_signed(offset as i16 as i32);
 
@@ -496,7 +506,7 @@ impl Cpu {
         Ok(())
     }
 
-    fn sh(&self, base: u8, rt: u8, offset: u16, bus: &Bus) -> Result<(), Exception> {
+    fn sh(&self, base: u8, rt: u8, offset: u16, bus: &mut Bus) -> Result<(), Exception> {
         let a = self.register_file[base as usize].read();
         let address = a.wrapping_add_signed(offset as i16 as i32);
 
@@ -620,6 +630,16 @@ impl Cpu {
         let a = self.register_file[rs as usize].read();
 
         self.register_file[rt as usize].write(a ^ immediate as u32);
+    }
+}
+
+fn translate_address(address: u32) -> MemorySpace {
+    match address {
+        0x00000000..=0x7fffffff => MemorySpace::Kuseg(address & 0x1fffffff),
+        0x80000000..=0x9fffffff => MemorySpace::Kseg0(address & 0x1fffffff),
+        0xa0000000..=0xbfffffff => MemorySpace::Kseg1(address & 0x1fffffff),
+        // dont know how the translation is for kseg2 on the psx
+        0xc0000000..=0xffffffff => MemorySpace::Kseg2(address),
     }
 }
 
