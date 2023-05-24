@@ -1,8 +1,8 @@
 use bus::Bus;
 use cpu::Cpu;
 
-mod cpu;
 mod bus;
+mod cpu;
 
 fn main() {
     let mut cpu = Cpu::new();
