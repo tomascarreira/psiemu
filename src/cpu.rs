@@ -419,7 +419,8 @@ impl Cpu {
         let mask = 0xffffffff >> (index * 8);
         let value = (value & mask) << (index * 8);
 
-        let mask = 0xffffffff >> ((!index + 1) * 8);
+        // overflow when index is 3
+        let mask = 0xffffffff_u32.checked_shr(((!index & 0x00000003) + 1) * 8).unwrap_or(0);
         let value = value | (self.register_file[rt as usize].read() & mask);
 
         self.register_file[rt as usize].write(value);
@@ -435,7 +436,7 @@ impl Cpu {
         let mask = 0xffffffff << (index * 8);
         let value = (value & mask) >> (index * 8);
 
-        let mask = 0xffffffff << ((!index + 1) * 8);
+        let mask = 0xffffffff_u32.checked_shl(((!index & 0x00000003) + 1) * 8).unwrap_or(0);
         let value = (self.register_file[rt as usize].read() & mask) | value;
 
         self.register_file[rt as usize].write(value);
