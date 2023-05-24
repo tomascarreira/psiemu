@@ -1,7 +1,7 @@
-use crate::Bus;
+use crate::bus::Bus;
 
 #[derive(Debug, PartialEq)]
-enum Exception {
+pub enum Exception {
     Reset,
     BusErrorInstruction,
     BusErrorData,
