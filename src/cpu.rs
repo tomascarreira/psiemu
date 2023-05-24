@@ -142,7 +142,7 @@ impl Cpu {
 
     fn write_halfword(&self, address: u32, value: u16, bus: &mut Bus) -> Result<(), Exception> {
         if (address & 0x00000001) != 0 {
-            return Err(Exception::AddressErrorLoad);
+            return Err(Exception::AddressErrorStore);
         }
 
         bus.write_halfword(translate_address(address).into_inner(), value)
@@ -150,7 +150,7 @@ impl Cpu {
 
     fn write_word(&self, address: u32, value: u32, bus: &mut Bus) -> Result<(), Exception> {
         if (address & 0x00000003) != 0 {
-            return Err(Exception::AddressErrorLoad);
+            return Err(Exception::AddressErrorStore);
         }
 
         bus.write_word(translate_address(address).into_inner(), value)
