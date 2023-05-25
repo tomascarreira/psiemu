@@ -3,10 +3,8 @@ use crate::bus::Bus;
 #[derive(Debug, PartialEq)]
 pub enum Exception {
     Reset,
-    BusErrorInstruction,
-    BusErrorData,
-    AddressErrorLoad,
-    AddressErrorStore,
+    BusError,
+    AddressError,
     Overflow,
     SystemCall,
     Breakpoint,
@@ -121,7 +119,7 @@ impl Cpu {
 
     fn read_halfword(&self, address: u32, bus: &Bus) -> Result<u16, Exception> {
         if (address & 0x00000001) != 0 {
-            return Err(Exception::AddressErrorLoad);
+            return Err(Exception::AddressError);
         }
 
         bus.read_halfword(translate_address(address).into_inner())
@@ -129,7 +127,7 @@ impl Cpu {
 
     fn read_word(&self, address: u32, bus: &Bus) -> Result<u32, Exception> {
         if (address & 0x00000003) != 0 {
-            return Err(Exception::AddressErrorLoad);
+            return Err(Exception::AddressError);
         }
 
         bus.read_word(translate_address(address).into_inner())
@@ -141,7 +139,7 @@ impl Cpu {
 
     fn write_halfword(&self, address: u32, value: u16, bus: &mut Bus) -> Result<(), Exception> {
         if (address & 0x00000001) != 0 {
-            return Err(Exception::AddressErrorStore);
+            return Err(Exception::AddressError);
         }
 
         bus.write_halfword(translate_address(address).into_inner(), value)
@@ -149,7 +147,7 @@ impl Cpu {
 
     fn write_word(&self, address: u32, value: u32, bus: &mut Bus) -> Result<(), Exception> {
         if (address & 0x00000003) != 0 {
-            return Err(Exception::AddressErrorStore);
+            return Err(Exception::AddressError);
         }
 
         bus.write_word(translate_address(address).into_inner(), value)
@@ -339,7 +337,7 @@ impl Cpu {
         // in this instruction
         // or when fetching the next
         if target & 0x00000003 != 0 {
-            Err(Exception::AddressErrorLoad)
+            Err(Exception::AddressError)
         } else {
             Ok(())
         }
@@ -354,7 +352,7 @@ impl Cpu {
         // in this instruction
         // or when fetching the next
         if target & 0x00000003 != 0 {
-            Err(Exception::AddressErrorLoad)
+            Err(Exception::AddressError)
         } else {
             Ok(())
         }
@@ -994,7 +992,7 @@ mod test {
         cpu.register_file[1].write(0xfffffffd);
         cpu.pc = 0;
 
-        assert_eq!(cpu.jalr(1, 2), Err(Exception::AddressErrorLoad));
+        assert_eq!(cpu.jalr(1, 2), Err(Exception::AddressError));
         assert_eq!(cpu.pc, 0xfffffffd);
         assert_eq!(cpu.register_file[2].read(), 0x00000008);
     }
@@ -1013,7 +1011,7 @@ mod test {
         let mut cpu = Cpu::new();
         cpu.register_file[1].write(0xfffffffd);
 
-        assert_eq!(cpu.jr(1), Err(Exception::AddressErrorLoad));
+        assert_eq!(cpu.jr(1), Err(Exception::AddressError));
         assert_eq!(cpu.pc, 0xfffffffd);
     }
 
@@ -1264,7 +1262,7 @@ mod test {
         let cpu = Cpu::new();
         let mut bus = Bus::new();
 
-        assert_eq!(cpu.sh(1, 2, 1, &mut bus), Err(Exception::AddressErrorStore));
+        assert_eq!(cpu.sh(1, 2, 1, &mut bus), Err(Exception::AddressError));
     }
 
     #[test]
@@ -1443,7 +1441,7 @@ mod test {
         let cpu = Cpu::new();
         let mut bus = Bus::new();
 
-        assert_eq!(cpu.sw(1, 2, 3, &mut bus), Err(Exception::AddressErrorStore));
+        assert_eq!(cpu.sw(1, 2, 3, &mut bus), Err(Exception::AddressError));
     }
 
     #[test]
