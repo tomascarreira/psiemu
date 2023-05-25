@@ -146,29 +146,89 @@ impl Cpu {
 
     fn execute_instruction(&mut self, instr: MipsI, bus: &mut Bus) -> Result<(), Exception> {
         match instr {
-            MipsI::Add(RegisterType { rs, rt, rd, sa }) => self.add(rs, rt, rd),
+            MipsI::Add(RegisterType { rs, rt, rd, sa: _ }) => self.add(rs, rt, rd),
             MipsI::Addi(ImmediateType { rs, rt, immediate }) => self.addi(rs, rt, immediate),
-            MipsI::Addiu(ImmediateType { rs, rt, immediate }) => Ok(self.addiu(rs, rt, immediate)),
-            MipsI::Addu(RegisterType { rs, rt, rd, sa }) => Ok(self.addu(rs, rt, rd)),
-            MipsI::And(RegisterType { rs, rt, rd, sa }) => Ok(self.and(rs, rt, rd)),
-            MipsI::Andi(ImmediateType { rs, rt, immediate }) => Ok(self.andi(rs, rt, immediate)),
-            MipsI::Bc0f(ImmediateType { rs, rt, immediate }) => Ok(self.bc0f(immediate)),
-            MipsI::Bc0t(ImmediateType { rs, rt, immediate }) => Ok(self.bc0t(immediate)),
-            MipsI::Bc1f(ImmediateType { rs, rt, immediate }) => Ok(self.bc1f(immediate)),
-            MipsI::Bc1t(ImmediateType { rs, rt, immediate }) => Ok(self.bc1t(immediate)),
-            MipsI::Bc2f(ImmediateType { rs, rt, immediate }) => Ok(self.bc2f(immediate)),
-            MipsI::Bc2t(ImmediateType { rs, rt, immediate }) => Ok(self.bc2t(immediate)),
-            MipsI::Bc3f(ImmediateType { rs, rt, immediate }) => Ok(self.bc3f(immediate)),
-            MipsI::Bc3t(ImmediateType { rs, rt, immediate }) => Ok(self.bc3t(immediate)),
-            MipsI::Beq(ImmediateType { rs, rt, immediate }) => Ok(self.beq(rs, rt, immediate)),
-            MipsI::Bgez(ImmediateType { rs, rt, immediate }) => Ok(self.bgez(rs, immediate)),
-            MipsI::Bgezal(ImmediateType { rs, rt, immediate }) => Ok(self.bgezal(rs, immediate)),
-            MipsI::Bgtz(ImmediateType { rs, rt, immediate }) => Ok(self.bgtz(rs, immediate)),
-            MipsI::Blez(ImmediateType { rs, rt, immediate }) => Ok(self.blez(rs, immediate)),
-            MipsI::Bltz(ImmediateType { rs, rt, immediate }) => Ok(self.bltz(rs, immediate)),
-            MipsI::Bltzal(ImmediateType { rs, rt, immediate }) => Ok(self.bltzal(rs, immediate)),
-            MipsI::Bne(ImmediateType { rs, rt, immediate }) => Ok(self.bne(rs, rt, immediate)),
-            MipsI::Break(RegisterType { rs, rt, rd, sa }) => Err(self.r#break()),
+            MipsI::Addiu(ImmediateType { rs, rt, immediate }) => {
+                self.addiu(rs, rt, immediate);
+                Ok(())
+            },
+            MipsI::Addu(RegisterType { rs, rt, rd, sa: _ }) => {
+                self.addu(rs, rt, rd);
+                Ok(())
+            },
+            MipsI::And(RegisterType { rs, rt, rd, sa: _ }) => {
+                self.and(rs, rt, rd);
+                Ok(())
+            },
+            MipsI::Andi(ImmediateType { rs, rt, immediate }) => {
+                self.andi(rs, rt, immediate);
+                Ok(())
+            },
+            MipsI::Bc0f(ImmediateType { rs: _, rt: _, immediate }) => {
+                self.bc0f(immediate);
+                Ok(())
+            },
+            MipsI::Bc0t(ImmediateType { rs: _, rt: _, immediate }) => {
+                self.bc0t(immediate);
+                Ok(())
+            },
+            MipsI::Bc1f(ImmediateType { rs: _, rt: _, immediate }) => {
+                self.bc1f(immediate);
+                Ok(())
+            },
+            MipsI::Bc1t(ImmediateType { rs: _, rt: _, immediate }) => {
+                self.bc1t(immediate);
+                Ok(())
+            },
+            MipsI::Bc2f(ImmediateType { rs: _, rt: _, immediate }) => {
+                self.bc2f(immediate);
+                Ok(())
+            },
+            MipsI::Bc2t(ImmediateType { rs: _, rt: _, immediate }) => {
+                self.bc2t(immediate);
+                Ok(())
+            },
+            MipsI::Bc3f(ImmediateType { rs: _, rt: _, immediate }) => {
+                self.bc3f(immediate);
+                Ok(())
+            },
+            MipsI::Bc3t(ImmediateType { rs: _, rt: _, immediate }) => {
+                self.bc3t(immediate);
+                Ok(())
+            },
+            MipsI::Beq(ImmediateType { rs, rt, immediate }) => {
+                self.beq(rs, rt, immediate);
+                Ok(())
+            },
+            MipsI::Bgez(ImmediateType { rs, rt: _, immediate }) => {
+                self.bgez(rs, immediate);
+                Ok(())
+            },
+            MipsI::Bgezal(ImmediateType { rs, rt: _, immediate }) => {
+                self.bgezal(rs, immediate);
+                Ok(())
+            },
+            MipsI::Bgtz(ImmediateType { rs, rt: _, immediate }) => {
+                self.bgtz(rs, immediate);
+                Ok(())
+            },
+            MipsI::Blez(ImmediateType { rs, rt: _, immediate }) => {
+                self.blez(rs, immediate);
+                Ok(())
+            },
+            MipsI::Bltz(ImmediateType { rs, rt: _, immediate }) => {
+                self.bltz(rs, immediate);
+                Ok(())
+            },
+            MipsI::Bltzal(ImmediateType { rs, rt: _, immediate }) => {
+                self.bltzal(rs, immediate);
+                Ok(())
+            },
+            MipsI::Bne(ImmediateType { rs, rt, immediate }) => {
+                self.bne(rs, rt, immediate);
+                Ok(())
+            },
+            MipsI::Break(RegisterType { rs: _, rt: _, rd: _, sa: _ }) => Err(self.r#break()),
             MipsI::Cfc1(_) => todo!(),
             MipsI::Cfc2(_) => todo!(),
             MipsI::Cfc3(_) => todo!(),
@@ -179,17 +239,32 @@ impl Cpu {
             MipsI::Ctc1(_) => todo!(),
             MipsI::Ctc2(_) => todo!(),
             MipsI::Ctc3(_) => todo!(),
-            MipsI::Div(RegisterType { rs, rt, rd, sa }) => Ok(self.div(rs, rt)),
-            MipsI::Divu(RegisterType { rs, rt, rd, sa }) => Ok(self.divu(rs, rt)),
-            MipsI::J(JumpType { target }) => Ok(self.j(target)),
-            MipsI::Jal(JumpType { target }) => Ok(self.jal(target)),
-            MipsI::Jalr(RegisterType { rs, rt, rd, sa }) => self.jalr(rs, rd),
-            MipsI::Jr(RegisterType { rs, rt, rd, sa }) => self.jr(rs),
+            MipsI::Div(RegisterType { rs, rt, rd: _, sa: _ }) => {
+                self.div(rs, rt);
+                Ok(())
+            },
+            MipsI::Divu(RegisterType { rs, rt, rd: _, sa: _ }) => {
+                self.divu(rs, rt);
+                Ok(())
+            },
+            MipsI::J(JumpType { target }) => {
+                self.j(target);
+                Ok(())
+            },
+            MipsI::Jal(JumpType { target }) => {
+                self.jal(target);
+                Ok(())
+            },
+            MipsI::Jalr(RegisterType { rs, rt: _, rd, sa: _ }) => self.jalr(rs, rd),
+            MipsI::Jr(RegisterType { rs, rt: _, rd: _, sa: _ }) => self.jr(rs),
             MipsI::Lb(ImmediateType { rs, rt, immediate }) => self.lb(rs, rt, immediate, bus),
             MipsI::Lbu(ImmediateType { rs, rt, immediate }) => self.lbu(rs, rt, immediate, bus),
             MipsI::Lh(ImmediateType { rs, rt, immediate }) => self.lh(rs, rt, immediate, bus),
             MipsI::Lhu(ImmediateType { rs, rt, immediate }) => self.lhu(rs, rt, immediate, bus),
-            MipsI::Lui(ImmediateType { rs, rt, immediate }) => Ok(self.lui(rt, immediate)),
+            MipsI::Lui(ImmediateType { rs: _, rt, immediate }) => {
+                self.lui(rt, immediate);
+                Ok(())
+            },
             MipsI::Lw(ImmediateType { rs, rt, immediate }) => self.lw(rs, rt, immediate, bus),
             MipsI::Lwc1(_) => todo!(),
             MipsI::Lwc2(_) => todo!(),
@@ -200,51 +275,117 @@ impl Cpu {
             MipsI::Mfc1(_) => todo!(),
             MipsI::Mfc2(_) => todo!(),
             MipsI::Mfc3(_) => todo!(),
-            MipsI::Mfhi(RegisterType { rs, rt, rd, sa }) => Ok(self.mfhi(rd)),
-            MipsI::Mflo(RegisterType { rs, rt, rd, sa }) => Ok(self.mflo(rd)),
+            MipsI::Mfhi(RegisterType { rs: _, rt: _, rd, sa: _ }) => {
+                self.mfhi(rd);
+                Ok(())
+            },
+            MipsI::Mflo(RegisterType { rs: _, rt: _, rd, sa: _ }) => {
+                self.mflo(rd);
+                Ok(())
+            },
             MipsI::Mtc0(_) => todo!(),
             MipsI::Mtc1(_) => todo!(),
             MipsI::Mtc2(_) => todo!(),
             MipsI::Mtc3(_) => todo!(),
-            MipsI::Mthi(RegisterType { rs, rt, rd, sa }) => Ok(self.mthi(rs)),
-            MipsI::Mtlo(RegisterType { rs, rt, rd, sa }) => Ok(self.mtlo(rs)),
-            MipsI::Mult(RegisterType { rs, rt, rd, sa }) => Ok(self.mult(rs, rt)),
-            MipsI::Multu(RegisterType { rs, rt, rd, sa }) => Ok(self.multu(rs, rt)),
-            MipsI::Nor(RegisterType { rs, rt, rd, sa }) => Ok(self.nor(rs, rt, rd)),
-            MipsI::Or(RegisterType { rs, rt, rd, sa }) => Ok(self.or(rs, rt, rd)),
-            MipsI::Ori(ImmediateType { rs, rt, immediate }) => Ok(self.ori(rs, rt, immediate)),
-            MipsI::Rfe(RegisterType { rs, rt, rd, sa }) => self.rfe(),
+            MipsI::Mthi(RegisterType { rs, rt: _, rd: _, sa: _ }) => {
+                self.mthi(rs);
+                Ok(())
+            },
+            MipsI::Mtlo(RegisterType { rs, rt: _, rd: _, sa: _ }) => {
+                self.mtlo(rs);
+                Ok(())
+            },
+            MipsI::Mult(RegisterType { rs, rt, rd: _, sa: _ }) => {
+                self.mult(rs, rt);
+                Ok(())
+            },
+            MipsI::Multu(RegisterType { rs, rt, rd: _, sa: _ }) => {
+                self.multu(rs, rt);
+                Ok(())
+            },
+            MipsI::Nor(RegisterType { rs, rt, rd, sa: _ }) => {
+                self.nor(rs, rt, rd);
+                Ok(())
+            },
+            MipsI::Or(RegisterType { rs, rt, rd, sa: _ }) => {
+                self.or(rs, rt, rd);
+                Ok(())
+            },
+            MipsI::Ori(ImmediateType { rs, rt, immediate }) => {
+                self.ori(rs, rt, immediate);
+                Ok(())
+            },
+            MipsI::Rfe(RegisterType { rs: _, rt: _, rd: _, sa: _ }) => self.rfe(),
             MipsI::Sb(ImmediateType { rs, rt, immediate }) => self.sb(rs, rt, immediate, bus),
             MipsI::Sh(ImmediateType { rs, rt, immediate }) => self.sh(rs, rt, immediate, bus),
-            MipsI::Sll(RegisterType { rs, rt, rd, sa }) => Ok(self.sll(rt, rd, sa)),
-            MipsI::Sllv(RegisterType { rs, rt, rd, sa }) => Ok(self.sllv(rs, rt, rd)),
-            MipsI::Slt(RegisterType { rs, rt, rd, sa }) => Ok(self.slt(rs, rt, rd)),
-            MipsI::Slti(ImmediateType { rs, rt, immediate }) => Ok(self.slti(rs, rt, immediate)),
-            MipsI::Sltiu(ImmediateType { rs, rt, immediate }) => Ok(self.sltiu(rs, rt, immediate)),
-            MipsI::Sltu(RegisterType { rs, rt, rd, sa }) => Ok(self.sltu(rs, rt, rd)),
-            MipsI::Sra(RegisterType { rs, rt, rd, sa }) => Ok(self.sra(rt, rd, sa)),
-            MipsI::Srav(RegisterType { rs, rt, rd, sa }) => Ok(self.srav(rs, rt, rd)),
-            MipsI::Srl(RegisterType { rs, rt, rd, sa }) => Ok(self.srl(rt, rd, sa)),
-            MipsI::Srlv(RegisterType { rs, rt, rd, sa }) => Ok(self.srlv(rs, rt, rd)),
-            MipsI::Sub(RegisterType { rs, rt, rd, sa }) => self.sub(rs, rt, rd),
-            MipsI::Subu(RegisterType { rs, rt, rd, sa }) => Ok(self.subu(rs, rt, rd)),
+            MipsI::Sll(RegisterType { rs: _, rt, rd, sa }) => {
+                self.sll(rt, rd, sa);
+                Ok(())
+            },
+            MipsI::Sllv(RegisterType { rs, rt, rd, sa: _ }) => {
+                self.sllv(rs, rt, rd);
+                Ok(())
+            },
+            MipsI::Slt(RegisterType { rs, rt, rd, sa: _ }) => {
+                self.slt(rs, rt, rd);
+                Ok(())
+            },
+            MipsI::Slti(ImmediateType { rs, rt, immediate }) => {
+                self.slti(rs, rt, immediate);
+                Ok(())
+            },
+            MipsI::Sltiu(ImmediateType { rs, rt, immediate }) => {
+                self.sltiu(rs, rt, immediate);
+                Ok(())
+            },
+            MipsI::Sltu(RegisterType { rs, rt, rd, sa: _ }) => {
+                self.sltu(rs, rt, rd);
+                Ok(())
+            },
+            MipsI::Sra(RegisterType { rs: _, rt, rd, sa }) => {
+                self.sra(rt, rd, sa);
+                Ok(())
+            },
+            MipsI::Srav(RegisterType { rs, rt, rd, sa: _ }) => {
+                self.srav(rs, rt, rd);
+                Ok(())
+            },
+            MipsI::Srl(RegisterType { rs: _, rt, rd, sa }) => {
+                self.srl(rt, rd, sa);
+                Ok(())
+            },
+            MipsI::Srlv(RegisterType { rs, rt, rd, sa: _ }) => {
+                self.srlv(rs, rt, rd);
+                Ok(())
+            },
+            MipsI::Sub(RegisterType { rs, rt, rd, sa: _ }) => self.sub(rs, rt, rd),
+            MipsI::Subu(RegisterType { rs, rt, rd, sa: _ }) => {
+                self.subu(rs, rt, rd);
+                Ok(())
+            },
             MipsI::Sw(ImmediateType { rs, rt, immediate }) => self.sw(rs, rt, immediate, bus),
             MipsI::Swc1(_) => todo!(),
             MipsI::Swc2(_) => todo!(),
             MipsI::Swc3(_) => todo!(),
             MipsI::Swl(ImmediateType { rs, rt, immediate }) => self.swl(rs, rt, immediate, bus),
             MipsI::Swr(ImmediateType { rs, rt, immediate }) => self.swr(rs, rt, immediate, bus),
-            MipsI::Syscall(RegisterType { rs, rt, rd, sa }) => Err(self.syscall()),
+            MipsI::Syscall(RegisterType { rs: _, rt: _, rd: _, sa: _ }) => Err(self.syscall()),
             MipsI::Tlbp(_) => unreachable!(),
             MipsI::Tlbr(_) => unreachable!(),
             MipsI::Tlbwi(_) => unreachable!(),
             MipsI::Tlbwr(_) => unreachable!(),
-            MipsI::Xor(RegisterType { rs, rt, rd, sa }) => Ok(self.xor(rs, rt, rd)),
-            MipsI::Xori(ImmediateType { rs, rt, immediate }) => Ok(self.xori(rs, rt, immediate)),
+            MipsI::Xor(RegisterType { rs, rt, rd, sa: _ }) => {
+                self.xor(rs, rt, rd);
+                Ok(())
+            },
+            MipsI::Xori(ImmediateType { rs, rt, immediate }) => {
+                self.xori(rs, rt, immediate);
+                Ok(())
+            },
         }
     }
 
-    fn handle_exception(&mut self, exception: Exception) {
+    fn handle_exception(&mut self, _exception: Exception) {
         todo!()
     }
 
@@ -341,35 +482,35 @@ impl Cpu {
         self.register_file[rt as usize].write(a & b);
     }
 
-    fn bc0f(&mut self, offset: u16) {
+    fn bc0f(&mut self, _offset: u16) {
         todo!()
     }
 
-    fn bc0t(&mut self, offset: u16) {
+    fn bc0t(&mut self, _offset: u16) {
         todo!()
     }
 
-    fn bc1f(&mut self, offset: u16) {
+    fn bc1f(&mut self, _offset: u16) {
         todo!()
     }
 
-    fn bc1t(&mut self, offset: u16) {
+    fn bc1t(&mut self, _offset: u16) {
         todo!()
     }
 
-    fn bc2f(&mut self, offset: u16) {
+    fn bc2f(&mut self, _offset: u16) {
         todo!()
     }
 
-    fn bc2t(&mut self, offset: u16) {
+    fn bc2t(&mut self, _offset: u16) {
         todo!()
     }
 
-    fn bc3f(&mut self, offset: u16) {
+    fn bc3f(&mut self, _offset: u16) {
         todo!()
     }
 
-    fn bc3t(&mut self, offset: u16) {
+    fn bc3t(&mut self, _offset: u16) {
         todo!()
     }
 
@@ -803,30 +944,6 @@ fn translate_address(address: u32) -> MemorySpace {
         0xa0000000..=0xbfffffff => MemorySpace::Kseg1(address & 0x1fffffff),
         // dont know how the translation is for kseg2 on the psx
         0xc0000000..=0xffffffff => MemorySpace::Kseg2(address),
-    }
-}
-
-enum Size {
-    Byte,
-    Halfword,
-}
-
-fn endianness_adjust(address: u32, size: Size) -> u32 {
-    // Only happens when be mode, i think ?!
-    match size {
-        Size::Byte => address ^ 0x00000003,
-        Size::Halfword => address ^ 0x00000002,
-    }
-}
-
-#[cfg(test)]
-mod helper {
-    use super::*;
-
-    #[test]
-    fn endianness_adjust() {
-        assert_eq!(super::endianness_adjust(0x101, Size::Byte), 0x102);
-        assert_eq!(super::endianness_adjust(0x2, Size::Halfword), 0x0);
     }
 }
 
