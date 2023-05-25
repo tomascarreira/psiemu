@@ -611,12 +611,33 @@ impl Cpu {
         Ok(())
     }
 
-    fn swl(&self, base: u8, rt: u8, offset: u16) -> Result<(), Exception> {
-        todo!()
+    fn swl(&self, base: u8, rt: u8, offset: u16, bus: &mut Bus) -> Result<(), Exception> {
+        let a = self.register_file[base as usize].read();
+        let address = a.wrapping_add_signed(offset as i16 as i32);
+
+        // Dont know how the cpu does it
+        // I will implement as a series of
+        // writes of bytes
+        let mut value = self.register_file[rt as usize].read().swap_bytes();
+        let index = address & 0x00000003;
+        for i in 0..=index {
+            self.write_byte(address-i, value as u8, bus)?;
+            value >>= 8;
+        }
+        Ok(())
     }
 
-    fn swr(&self, base: u8, rt: u8, offset: u16) -> Result<(), Exception> {
-        todo!()
+    fn swr(&self, base: u8, rt: u8, offset: u16, bus: &mut Bus) -> Result<(), Exception> {
+        let a = self.register_file[base as usize].read();
+        let address = a.wrapping_add_signed(offset as i16 as i32);
+
+        let mut value = self.register_file[rt as usize].read();
+        let index = !address & 0x00000003;
+        for i in 0..=index {
+            self.write_byte(address+i, value as u8, bus)?;
+            value >>= 8;
+        }
+        Ok(())
     }
 
     fn syscall(&self) -> Exception {
@@ -1423,6 +1444,52 @@ mod test {
         let mut bus = Bus::new();
 
         assert_eq!(cpu.sw(1, 2, 3, &mut bus), Err(Exception::AddressErrorStore));
+    }
+
+    #[test]
+    fn swl() {
+        let mut cpu = Cpu::new();
+        let mut bus = Bus::new();
+        cpu.register_file[2].write(0x00224466);
+        bus.write_word(0, 0x55555555).unwrap();
+
+        cpu.swl(1, 2, 0, &mut bus).unwrap();
+        assert_eq!(bus.read_word(0), Ok(0x55555500));
+
+        bus.write_word(0, 0x77777777).unwrap();
+        cpu.swl(1, 2, 1, &mut bus).unwrap();
+        assert_eq!(bus.read_word(0), Ok(0x77770022));
+
+        bus.write_word(0, 0x33333333).unwrap();
+        cpu.swl(1, 2, 2, &mut bus).unwrap();
+        assert_eq!(bus.read_word(0), Ok(0x33002244));
+
+        bus.write_word(0, 0x11111111).unwrap();
+        cpu.swl(1, 2, 3, &mut bus).unwrap();
+        assert_eq!(bus.read_word(0), Ok(0x00224466));
+    }
+
+    #[test]
+    fn swr() {
+        let mut cpu = Cpu::new();
+        let mut bus = Bus::new();
+        cpu.register_file[2].write(0x00224466);
+        bus.write_word(0, 0x55555555).unwrap();
+
+        cpu.swr(1, 2, 0, &mut bus).unwrap();
+        assert_eq!(bus.read_word(0), Ok(0x00224466));
+
+        bus.write_word(0, 0x77777777).unwrap();
+        cpu.swr(1, 2, 1, &mut bus).unwrap();
+        assert_eq!(bus.read_word(0), Ok(0x22446677));
+
+        bus.write_word(0, 0x33333333).unwrap();
+        cpu.swr(1, 2, 2, &mut bus).unwrap();
+        assert_eq!(bus.read_word(0), Ok(0x44663333));
+
+        bus.write_word(0, 0x11111111).unwrap();
+        cpu.swr(1, 2, 3, &mut bus).unwrap();
+        assert_eq!(bus.read_word(0), Ok(0x66111111));
     }
 
     #[test]
