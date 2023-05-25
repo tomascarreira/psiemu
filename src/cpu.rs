@@ -133,11 +133,13 @@ impl Cpu {
             Err(e) => {
                 println!("{e}");
                 std::process::exit(1);
-            },
+            }
         };
 
         match instr {
-            MipsI::Tlbp(_) | MipsI::Tlbr(_) | MipsI::Tlbwi(_) | MipsI::Tlbwr(_) => Err(Exception::ReservedInstruction),
+            MipsI::Tlbp(_) | MipsI::Tlbr(_) | MipsI::Tlbwi(_) | MipsI::Tlbwr(_) => {
+                Err(Exception::ReservedInstruction)
+            }
             _ => Ok(instr),
         }
     }
@@ -756,7 +758,7 @@ impl Cpu {
         let mut value = self.register_file[rt as usize].read().swap_bytes();
         let index = address & 0x00000003;
         for i in 0..=index {
-            self.write_byte(address-i, value as u8, bus)?;
+            self.write_byte(address - i, value as u8, bus)?;
             value >>= 8;
         }
         Ok(())
@@ -769,7 +771,7 @@ impl Cpu {
         let mut value = self.register_file[rt as usize].read();
         let index = !address & 0x00000003;
         for i in 0..=index {
-            self.write_byte(address+i, value as u8, bus)?;
+            self.write_byte(address + i, value as u8, bus)?;
             value >>= 8;
         }
         Ok(())
@@ -809,7 +811,7 @@ enum Size {
     Halfword,
 }
 
-fn endianness_adjust(address: u32, size: Size) -> u32{
+fn endianness_adjust(address: u32, size: Size) -> u32 {
     // Only happens when be mode, i think ?!
     match size {
         Size::Byte => address ^ 0x00000003,
@@ -826,7 +828,6 @@ mod helper {
         assert_eq!(super::endianness_adjust(0x101, Size::Byte), 0x102);
         assert_eq!(super::endianness_adjust(0x2, Size::Halfword), 0x0);
     }
-
 }
 
 #[cfg(test)]
