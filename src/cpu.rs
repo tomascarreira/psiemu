@@ -1,3 +1,9 @@
+use parsmips::Decode;
+use parsmips::Immediate as ImmediateType;
+use parsmips::Jump as JumpType;
+use parsmips::MipsI;
+use parsmips::Register as RegisterType;
+
 use crate::bus::Bus;
 
 #[derive(Debug, PartialEq)]
@@ -105,11 +111,138 @@ impl Cpu {
         }
     }
 
-    fn fetch_instruction(&mut self) -> Result<(), Exception> {
-        todo!()
+    pub fn cpu_cycle(&mut self, bus: &mut Bus) {
+        let instr = match self.fetch_decode_instruction(bus) {
+            Ok(instr) => instr,
+            Err(exception) => {
+                self.handle_exception(exception);
+                return;
+            }
+        };
+
+        match self.execute_instruction(instr, bus) {
+            Ok(_) => (),
+            Err(exception) => self.handle_exception(exception),
+        }
     }
 
-    fn execute_instruction(&mut self) -> Result<(), Exception> {
+    fn fetch_decode_instruction(&mut self, bus: &Bus) -> Result<MipsI, Exception> {
+        let instr = self.read_word(self.pc, bus)?;
+        let instr = match instr.decode() {
+            Ok(instr) => instr,
+            Err(e) => {
+                println!("{e}");
+                std::process::exit(1);
+            },
+        };
+
+        match instr {
+            MipsI::Tlbp(_) | MipsI::Tlbr(_) | MipsI::Tlbwi(_) | MipsI::Tlbwr(_) => Err(Exception::ReservedInstruction),
+            _ => Ok(instr),
+        }
+    }
+
+    fn execute_instruction(&mut self, instr: MipsI, bus: &mut Bus) -> Result<(), Exception> {
+        match instr {
+            MipsI::Add(RegisterType { rs, rt, rd, sa }) => self.add(rs, rt, rd),
+            MipsI::Addi(ImmediateType { rs, rt, immediate }) => self.addi(rs, rt, immediate),
+            MipsI::Addiu(ImmediateType { rs, rt, immediate }) => Ok(self.addiu(rs, rt, immediate)),
+            MipsI::Addu(RegisterType { rs, rt, rd, sa }) => Ok(self.addu(rs, rt, rd)),
+            MipsI::And(RegisterType { rs, rt, rd, sa }) => Ok(self.and(rs, rt, rd)),
+            MipsI::Andi(ImmediateType { rs, rt, immediate }) => Ok(self.andi(rs, rt, immediate)),
+            MipsI::Bc0f(ImmediateType { rs, rt, immediate }) => Ok(self.bc0f(immediate)),
+            MipsI::Bc0t(ImmediateType { rs, rt, immediate }) => Ok(self.bc0t(immediate)),
+            MipsI::Bc1f(ImmediateType { rs, rt, immediate }) => Ok(self.bc1f(immediate)),
+            MipsI::Bc1t(ImmediateType { rs, rt, immediate }) => Ok(self.bc1t(immediate)),
+            MipsI::Bc2f(ImmediateType { rs, rt, immediate }) => Ok(self.bc2f(immediate)),
+            MipsI::Bc2t(ImmediateType { rs, rt, immediate }) => Ok(self.bc2t(immediate)),
+            MipsI::Bc3f(ImmediateType { rs, rt, immediate }) => Ok(self.bc3f(immediate)),
+            MipsI::Bc3t(ImmediateType { rs, rt, immediate }) => Ok(self.bc3t(immediate)),
+            MipsI::Beq(ImmediateType { rs, rt, immediate }) => Ok(self.beq(rs, rt, immediate)),
+            MipsI::Bgez(ImmediateType { rs, rt, immediate }) => Ok(self.bgez(rs, immediate)),
+            MipsI::Bgezal(ImmediateType { rs, rt, immediate }) => Ok(self.bgezal(rs, immediate)),
+            MipsI::Bgtz(ImmediateType { rs, rt, immediate }) => Ok(self.bgtz(rs, immediate)),
+            MipsI::Blez(ImmediateType { rs, rt, immediate }) => Ok(self.blez(rs, immediate)),
+            MipsI::Bltz(ImmediateType { rs, rt, immediate }) => Ok(self.bltz(rs, immediate)),
+            MipsI::Bltzal(ImmediateType { rs, rt, immediate }) => Ok(self.bltzal(rs, immediate)),
+            MipsI::Bne(ImmediateType { rs, rt, immediate }) => Ok(self.bne(rs, rt, immediate)),
+            MipsI::Break(RegisterType { rs, rt, rd, sa }) => Err(self.r#break()),
+            MipsI::Cfc1(_) => todo!(),
+            MipsI::Cfc2(_) => todo!(),
+            MipsI::Cfc3(_) => todo!(),
+            MipsI::Cop0(_) => todo!(),
+            MipsI::Cop1(_) => todo!(),
+            MipsI::Cop2(_) => todo!(),
+            MipsI::Cop3(_) => todo!(),
+            MipsI::Ctc1(_) => todo!(),
+            MipsI::Ctc2(_) => todo!(),
+            MipsI::Ctc3(_) => todo!(),
+            MipsI::Div(RegisterType { rs, rt, rd, sa }) => Ok(self.div(rs, rt)),
+            MipsI::Divu(RegisterType { rs, rt, rd, sa }) => Ok(self.divu(rs, rt)),
+            MipsI::J(JumpType { target }) => Ok(self.j(target)),
+            MipsI::Jal(JumpType { target }) => Ok(self.jal(target)),
+            MipsI::Jalr(RegisterType { rs, rt, rd, sa }) => self.jalr(rs, rd),
+            MipsI::Jr(RegisterType { rs, rt, rd, sa }) => self.jr(rs),
+            MipsI::Lb(ImmediateType { rs, rt, immediate }) => self.lb(rs, rt, immediate, bus),
+            MipsI::Lbu(ImmediateType { rs, rt, immediate }) => self.lbu(rs, rt, immediate, bus),
+            MipsI::Lh(ImmediateType { rs, rt, immediate }) => self.lh(rs, rt, immediate, bus),
+            MipsI::Lhu(ImmediateType { rs, rt, immediate }) => self.lhu(rs, rt, immediate, bus),
+            MipsI::Lui(ImmediateType { rs, rt, immediate }) => Ok(self.lui(rt, immediate)),
+            MipsI::Lw(ImmediateType { rs, rt, immediate }) => self.lw(rs, rt, immediate, bus),
+            MipsI::Lwc1(_) => todo!(),
+            MipsI::Lwc2(_) => todo!(),
+            MipsI::Lwc3(_) => todo!(),
+            MipsI::Lwl(ImmediateType { rs, rt, immediate }) => self.lwl(rs, rt, immediate, bus),
+            MipsI::Lwr(ImmediateType { rs, rt, immediate }) => self.lwr(rs, rt, immediate, bus),
+            MipsI::Mfc0(_) => todo!(),
+            MipsI::Mfc1(_) => todo!(),
+            MipsI::Mfc2(_) => todo!(),
+            MipsI::Mfc3(_) => todo!(),
+            MipsI::Mfhi(RegisterType { rs, rt, rd, sa }) => Ok(self.mfhi(rd)),
+            MipsI::Mflo(RegisterType { rs, rt, rd, sa }) => Ok(self.mflo(rd)),
+            MipsI::Mtc0(_) => todo!(),
+            MipsI::Mtc1(_) => todo!(),
+            MipsI::Mtc2(_) => todo!(),
+            MipsI::Mtc3(_) => todo!(),
+            MipsI::Mthi(RegisterType { rs, rt, rd, sa }) => Ok(self.mthi(rs)),
+            MipsI::Mtlo(RegisterType { rs, rt, rd, sa }) => Ok(self.mtlo(rs)),
+            MipsI::Mult(RegisterType { rs, rt, rd, sa }) => Ok(self.mult(rs, rt)),
+            MipsI::Multu(RegisterType { rs, rt, rd, sa }) => Ok(self.multu(rs, rt)),
+            MipsI::Nor(RegisterType { rs, rt, rd, sa }) => Ok(self.nor(rs, rt, rd)),
+            MipsI::Or(RegisterType { rs, rt, rd, sa }) => Ok(self.or(rs, rt, rd)),
+            MipsI::Ori(ImmediateType { rs, rt, immediate }) => Ok(self.ori(rs, rt, immediate)),
+            MipsI::Rfe(RegisterType { rs, rt, rd, sa }) => self.rfe(),
+            MipsI::Sb(ImmediateType { rs, rt, immediate }) => self.sb(rs, rt, immediate, bus),
+            MipsI::Sh(ImmediateType { rs, rt, immediate }) => self.sh(rs, rt, immediate, bus),
+            MipsI::Sll(RegisterType { rs, rt, rd, sa }) => Ok(self.sll(rt, rd, sa)),
+            MipsI::Sllv(RegisterType { rs, rt, rd, sa }) => Ok(self.sllv(rs, rt, rd)),
+            MipsI::Slt(RegisterType { rs, rt, rd, sa }) => Ok(self.slt(rs, rt, rd)),
+            MipsI::Slti(ImmediateType { rs, rt, immediate }) => Ok(self.slti(rs, rt, immediate)),
+            MipsI::Sltiu(ImmediateType { rs, rt, immediate }) => Ok(self.sltiu(rs, rt, immediate)),
+            MipsI::Sltu(RegisterType { rs, rt, rd, sa }) => Ok(self.sltu(rs, rt, rd)),
+            MipsI::Sra(RegisterType { rs, rt, rd, sa }) => Ok(self.sra(rt, rd, sa)),
+            MipsI::Srav(RegisterType { rs, rt, rd, sa }) => Ok(self.srav(rs, rt, rd)),
+            MipsI::Srl(RegisterType { rs, rt, rd, sa }) => Ok(self.srl(rt, rd, sa)),
+            MipsI::Srlv(RegisterType { rs, rt, rd, sa }) => Ok(self.srlv(rs, rt, rd)),
+            MipsI::Sub(RegisterType { rs, rt, rd, sa }) => self.sub(rs, rt, rd),
+            MipsI::Subu(RegisterType { rs, rt, rd, sa }) => Ok(self.subu(rs, rt, rd)),
+            MipsI::Sw(ImmediateType { rs, rt, immediate }) => self.sw(rs, rt, immediate, bus),
+            MipsI::Swc1(_) => todo!(),
+            MipsI::Swc2(_) => todo!(),
+            MipsI::Swc3(_) => todo!(),
+            MipsI::Swl(ImmediateType { rs, rt, immediate }) => self.swl(rs, rt, immediate, bus),
+            MipsI::Swr(ImmediateType { rs, rt, immediate }) => self.swr(rs, rt, immediate, bus),
+            MipsI::Syscall(RegisterType { rs, rt, rd, sa }) => Err(self.syscall()),
+            MipsI::Tlbp(_) => unreachable!(),
+            MipsI::Tlbr(_) => unreachable!(),
+            MipsI::Tlbwi(_) => unreachable!(),
+            MipsI::Tlbwr(_) => unreachable!(),
+            MipsI::Xor(RegisterType { rs, rt, rd, sa }) => Ok(self.xor(rs, rt, rd)),
+            MipsI::Xori(ImmediateType { rs, rt, immediate }) => Ok(self.xori(rs, rt, immediate)),
+        }
+    }
+
+    fn handle_exception(&mut self, exception: Exception) {
         todo!()
     }
 
@@ -499,6 +632,10 @@ impl Cpu {
         self.register_file[rt as usize].write(a | b);
     }
 
+    fn rfe(&mut self) -> Result<(), Exception> {
+        todo!()
+    }
+
     fn sb(&self, base: u8, rt: u8, offset: u16, bus: &mut Bus) -> Result<(), Exception> {
         let a = self.register_file[base as usize].read();
         let address = a.wrapping_add_signed(offset as i16 as i32);
@@ -657,6 +794,7 @@ impl Cpu {
 }
 
 fn translate_address(address: u32) -> MemorySpace {
+    // program address to physical address
     match address {
         0x00000000..=0x7fffffff => MemorySpace::Kuseg(address & 0x1fffffff),
         0x80000000..=0x9fffffff => MemorySpace::Kseg0(address & 0x1fffffff),
@@ -666,8 +804,33 @@ fn translate_address(address: u32) -> MemorySpace {
     }
 }
 
+enum Size {
+    Byte,
+    Halfword,
+}
+
+fn endianness_adjust(address: u32, size: Size) -> u32{
+    // Only happens when be mode, i think ?!
+    match size {
+        Size::Byte => address ^ 0x00000003,
+        Size::Halfword => address ^ 0x00000002,
+    }
+}
+
 #[cfg(test)]
-mod test {
+mod helper {
+    use super::*;
+
+    #[test]
+    fn endianness_adjust() {
+        assert_eq!(super::endianness_adjust(0x101, Size::Byte), 0x102);
+        assert_eq!(super::endianness_adjust(0x2, Size::Halfword), 0x0);
+    }
+
+}
+
+#[cfg(test)]
+mod opcodes {
     use super::*;
 
     #[test]
