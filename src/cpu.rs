@@ -322,7 +322,7 @@ impl Cpu {
             MipsI::Lwc3(_) => todo!(),
             MipsI::Lwl(ImmediateType { rs, rt, immediate }) => self.lwl(rs, rt, immediate, bus),
             MipsI::Lwr(ImmediateType { rs, rt, immediate }) => self.lwr(rs, rt, immediate, bus),
-            MipsI::Mfc0(RegisterType { rs, rt, rd, sa }) => self.mfc0(rt, rd),
+            MipsI::Mfc0(RegisterType { rs: _, rt, rd, sa: _ }) => self.mfc0(rt, rd),
             MipsI::Mfc1(_) => todo!(),
             MipsI::Mfc2(_) => todo!(),
             MipsI::Mfc3(_) => todo!(),
@@ -334,7 +334,7 @@ impl Cpu {
                 self.mflo(rd);
                 Ok(())
             },
-            MipsI::Mtc0(RegisterType { rs, rt, rd, sa }) => self.mtc0(rt, rd),
+            MipsI::Mtc0(RegisterType { rs: _, rt, rd, sa: _ }) => self.mtc0(rt, rd),
             MipsI::Mtc1(_) => todo!(),
             MipsI::Mtc2(_) => todo!(),
             MipsI::Mtc3(_) => todo!(),
