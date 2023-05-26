@@ -59,7 +59,53 @@ impl Register {
     }
 }
 
+struct Cop0 {
+    register_file: [Register; 32],
+}
+
+impl Cop0 {
+    pub fn new() -> Self {
+        let register_file: [Register; 32] = [
+            Register::Zero,
+            Register::Normal(0),
+            Register::Normal(0),
+            Register::Normal(0),
+            Register::Normal(0),
+            Register::Normal(0),
+            Register::Normal(0),
+            Register::Normal(0),
+            Register::Normal(0),
+            Register::Normal(0),
+            Register::Normal(0),
+            Register::Normal(0),
+            Register::Normal(0),
+            Register::Normal(0),
+            Register::Normal(0),
+            Register::Normal(0),
+            Register::Normal(0),
+            Register::Normal(0),
+            Register::Normal(0),
+            Register::Normal(0),
+            Register::Normal(0),
+            Register::Normal(0),
+            Register::Normal(0),
+            Register::Normal(0),
+            Register::Normal(0),
+            Register::Normal(0),
+            Register::Normal(0),
+            Register::Normal(0),
+            Register::Normal(0),
+            Register::Normal(0),
+            Register::Normal(0),
+            Register::Normal(0),
+        ];
+
+        Cop0 { register_file }
+    }
+}
+
 pub struct Cpu {
+    cop0: Cop0,
     register_file: [Register; 32],
     hi: u32,
     lo: u32,
@@ -104,6 +150,7 @@ impl Cpu {
         ];
 
         Cpu {
+            cop0: Cop0::new(),
             register_file,
             hi: 0,
             lo: 0,
@@ -275,7 +322,7 @@ impl Cpu {
             MipsI::Lwc3(_) => todo!(),
             MipsI::Lwl(ImmediateType { rs, rt, immediate }) => self.lwl(rs, rt, immediate, bus),
             MipsI::Lwr(ImmediateType { rs, rt, immediate }) => self.lwr(rs, rt, immediate, bus),
-            MipsI::Mfc0(_) => todo!(),
+            MipsI::Mfc0(RegisterType { rs, rt, rd, sa }) => self.mfc0(rt, rd),
             MipsI::Mfc1(_) => todo!(),
             MipsI::Mfc2(_) => todo!(),
             MipsI::Mfc3(_) => todo!(),
@@ -287,7 +334,7 @@ impl Cpu {
                 self.mflo(rd);
                 Ok(())
             },
-            MipsI::Mtc0(_) => todo!(),
+            MipsI::Mtc0(RegisterType { rs, rt, rd, sa }) => self.mtc0(rt, rd),
             MipsI::Mtc1(_) => todo!(),
             MipsI::Mtc2(_) => todo!(),
             MipsI::Mtc3(_) => todo!(),
@@ -724,12 +771,22 @@ impl Cpu {
         Ok(())
     }
 
+    fn mfc0(&mut self, rt: u8, rd: u8) -> Result<(), Exception> {
+        self.register_file[rt as usize].write(self.cop0.register_file[rd as usize].read());
+        Ok(())
+    }
+
     fn mfhi(&mut self, rd: u8) {
         self.register_file[rd as usize].write(self.hi);
     }
 
     fn mflo(&mut self, rd: u8) {
         self.register_file[rd as usize].write(self.lo);
+    }
+
+    fn mtc0(&mut self, rt: u8, rd: u8) -> Result<(), Exception> {
+        self.cop0.register_file[rd as usize].write(self.register_file[rt as usize].read());
+        Ok(())
     }
 
     fn mthi(&mut self, rs: u8) {
