@@ -120,6 +120,10 @@ impl Cpu {
             }
         };
 
+        println!("pc:{:x} instr:{:?}", self.pc, instr);
+
+        self.pc += 4;
+
         match self.execute_instruction(instr, bus) {
             Ok(_) => (),
             Err(exception) => self.handle_exception(exception),
@@ -1299,7 +1303,7 @@ mod opcodes {
     #[test]
     fn lb() {
         let mut cpu = Cpu::new();
-        let mut bus = Bus::new();
+        let mut bus = Bus::new(vec![]);
         cpu.register_file[1].write(0);
         bus.write_word(0, 0x0000ff00).unwrap();
 
@@ -1310,7 +1314,7 @@ mod opcodes {
     #[test]
     fn lbu() {
         let mut cpu = Cpu::new();
-        let mut bus = Bus::new();
+        let mut bus = Bus::new(vec![]);
         cpu.register_file[1].write(0);
         bus.write_word(0, 0x00ff0000).unwrap();
 
@@ -1321,7 +1325,7 @@ mod opcodes {
     #[test]
     fn lh() {
         let mut cpu = Cpu::new();
-        let mut bus = Bus::new();
+        let mut bus = Bus::new(vec![]);
         cpu.register_file[1].write(0);
         bus.write_word(0, 0xffff0000).unwrap();
 
@@ -1332,7 +1336,7 @@ mod opcodes {
     #[test]
     fn lhu() {
         let mut cpu = Cpu::new();
-        let mut bus = Bus::new();
+        let mut bus = Bus::new(vec![]);
         cpu.register_file[1].write(0);
         bus.write_word(0, 0x0000ffff).unwrap();
 
@@ -1351,7 +1355,7 @@ mod opcodes {
     #[test]
     fn lw() {
         let mut cpu = Cpu::new();
-        let mut bus = Bus::new();
+        let mut bus = Bus::new(vec![]);
         cpu.register_file[1].write(0);
         bus.write_word(0, 0xffffffff).unwrap();
 
@@ -1362,7 +1366,7 @@ mod opcodes {
     #[test]
     fn lwl() {
         let mut cpu = Cpu::new();
-        let mut bus = Bus::new();
+        let mut bus = Bus::new(vec![]);
         cpu.register_file[1].write(0);
         cpu.register_file[2].write(0x69696969);
         bus.write_word(0, 0xffffffff).unwrap();
@@ -1386,7 +1390,7 @@ mod opcodes {
     #[test]
     fn lwr() {
         let mut cpu = Cpu::new();
-        let mut bus = Bus::new();
+        let mut bus = Bus::new(vec![]);
         cpu.register_file[1].write(0);
         cpu.register_file[2].write(0x69696969);
         bus.write_word(4, 0xffffffff).unwrap();
@@ -1519,7 +1523,7 @@ mod opcodes {
     #[test]
     fn sb() {
         let mut cpu = Cpu::new();
-        let mut bus = Bus::new();
+        let mut bus = Bus::new(vec![]);
         cpu.register_file[1].write(0);
         cpu.register_file[2].write(0x0066aaff);
 
@@ -1530,7 +1534,7 @@ mod opcodes {
     #[test]
     fn sh() {
         let mut cpu = Cpu::new();
-        let mut bus = Bus::new();
+        let mut bus = Bus::new(vec![]);
         cpu.register_file[1].write(0);
         cpu.register_file[2].write(0x0066aaff);
 
@@ -1541,7 +1545,7 @@ mod opcodes {
     #[test]
     fn sh_not_aligned() {
         let cpu = Cpu::new();
-        let mut bus = Bus::new();
+        let mut bus = Bus::new(vec![]);
 
         assert_eq!(cpu.sh(1, 2, 1, &mut bus), Err(Exception::AddressError));
     }
@@ -1709,7 +1713,7 @@ mod opcodes {
     #[test]
     fn sw() {
         let mut cpu = Cpu::new();
-        let mut bus = Bus::new();
+        let mut bus = Bus::new(vec![]);
         cpu.register_file[1].write(0);
         cpu.register_file[2].write(0xffff8888);
 
@@ -1720,7 +1724,7 @@ mod opcodes {
     #[test]
     fn sw_not_aligned() {
         let cpu = Cpu::new();
-        let mut bus = Bus::new();
+        let mut bus = Bus::new(vec![]);
 
         assert_eq!(cpu.sw(1, 2, 3, &mut bus), Err(Exception::AddressError));
     }
@@ -1728,7 +1732,7 @@ mod opcodes {
     #[test]
     fn swl() {
         let mut cpu = Cpu::new();
-        let mut bus = Bus::new();
+        let mut bus = Bus::new(vec![]);
         cpu.register_file[2].write(0x00224466);
         bus.write_word(0, 0x55555555).unwrap();
 
@@ -1751,7 +1755,7 @@ mod opcodes {
     #[test]
     fn swr() {
         let mut cpu = Cpu::new();
-        let mut bus = Bus::new();
+        let mut bus = Bus::new(vec![]);
         cpu.register_file[2].write(0x00224466);
         bus.write_word(0, 0x55555555).unwrap();
 
