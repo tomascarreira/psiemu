@@ -177,6 +177,10 @@ impl Cpu {
         }
     }
 
+    fn execute_delay_slot(&mut self, bus: &mut Bus) {
+        self.cpu_cycle(bus);
+    }
+
     fn fetch_decode_instruction(&mut self, bus: &Bus) -> Result<MipsI, Exception> {
         let instr = self.read_word(self.pc, bus)?;
         let instr = match instr.decode() {
@@ -216,66 +220,82 @@ impl Cpu {
                 Ok(())
             },
             MipsI::Bc0f(ImmediateType { rs: _, rt: _, immediate }) => {
+                self.execute_delay_slot(bus);
                 self.bc0f(immediate);
                 Ok(())
             },
             MipsI::Bc0t(ImmediateType { rs: _, rt: _, immediate }) => {
+                self.execute_delay_slot(bus);
                 self.bc0t(immediate);
                 Ok(())
             },
             MipsI::Bc1f(ImmediateType { rs: _, rt: _, immediate }) => {
+                self.execute_delay_slot(bus);
                 self.bc1f(immediate);
                 Ok(())
             },
             MipsI::Bc1t(ImmediateType { rs: _, rt: _, immediate }) => {
+                self.execute_delay_slot(bus);
                 self.bc1t(immediate);
                 Ok(())
             },
             MipsI::Bc2f(ImmediateType { rs: _, rt: _, immediate }) => {
+                self.execute_delay_slot(bus);
                 self.bc2f(immediate);
                 Ok(())
             },
             MipsI::Bc2t(ImmediateType { rs: _, rt: _, immediate }) => {
+                self.execute_delay_slot(bus);
                 self.bc2t(immediate);
                 Ok(())
             },
             MipsI::Bc3f(ImmediateType { rs: _, rt: _, immediate }) => {
+                self.execute_delay_slot(bus);
                 self.bc3f(immediate);
                 Ok(())
             },
             MipsI::Bc3t(ImmediateType { rs: _, rt: _, immediate }) => {
+                self.execute_delay_slot(bus);
                 self.bc3t(immediate);
                 Ok(())
             },
             MipsI::Beq(ImmediateType { rs, rt, immediate }) => {
+                self.execute_delay_slot(bus);
                 self.beq(rs, rt, immediate);
                 Ok(())
             },
             MipsI::Bgez(ImmediateType { rs, rt: _, immediate }) => {
+                self.execute_delay_slot(bus);
                 self.bgez(rs, immediate);
                 Ok(())
             },
             MipsI::Bgezal(ImmediateType { rs, rt: _, immediate }) => {
+                self.execute_delay_slot(bus);
                 self.bgezal(rs, immediate);
                 Ok(())
             },
             MipsI::Bgtz(ImmediateType { rs, rt: _, immediate }) => {
+                self.execute_delay_slot(bus);
                 self.bgtz(rs, immediate);
                 Ok(())
             },
             MipsI::Blez(ImmediateType { rs, rt: _, immediate }) => {
+                self.execute_delay_slot(bus);
                 self.blez(rs, immediate);
                 Ok(())
             },
             MipsI::Bltz(ImmediateType { rs, rt: _, immediate }) => {
+                self.execute_delay_slot(bus);
                 self.bltz(rs, immediate);
                 Ok(())
             },
             MipsI::Bltzal(ImmediateType { rs, rt: _, immediate }) => {
+                self.execute_delay_slot(bus);
                 self.bltzal(rs, immediate);
                 Ok(())
             },
             MipsI::Bne(ImmediateType { rs, rt, immediate }) => {
+                self.execute_delay_slot(bus);
                 self.bne(rs, rt, immediate);
                 Ok(())
             },
@@ -299,15 +319,23 @@ impl Cpu {
                 Ok(())
             },
             MipsI::J(JumpType { target }) => {
+                self.execute_delay_slot(bus);
                 self.j(target);
                 Ok(())
             },
             MipsI::Jal(JumpType { target }) => {
+                self.execute_delay_slot(bus);
                 self.jal(target);
                 Ok(())
             },
-            MipsI::Jalr(RegisterType { rs, rt: _, rd, sa: _ }) => self.jalr(rs, rd),
-            MipsI::Jr(RegisterType { rs, rt: _, rd: _, sa: _ }) => self.jr(rs),
+            MipsI::Jalr(RegisterType { rs, rt: _, rd, sa: _ }) => {
+                self.execute_delay_slot(bus);
+                self.jalr(rs, rd)
+            }
+            MipsI::Jr(RegisterType { rs, rt: _, rd: _, sa: _ }) => {
+                self.execute_delay_slot(bus);
+                self.jr(rs)
+            }
             MipsI::Lb(ImmediateType { rs, rt, immediate }) => self.lb(rs, rt, immediate, bus),
             MipsI::Lbu(ImmediateType { rs, rt, immediate }) => self.lbu(rs, rt, immediate, bus),
             MipsI::Lh(ImmediateType { rs, rt, immediate }) => self.lh(rs, rt, immediate, bus),
@@ -568,14 +596,14 @@ impl Cpu {
     fn beq(&mut self, rs: u8, rt: u8, offset: u16) {
         if self.register_file[rs as usize].read() == self.register_file[rt as usize].read() {
             let target = (offset as i16 as i32) << 2;
-            self.pc = self.pc.wrapping_add_signed(target);
+            self.pc = self.pc.wrapping_add_signed(target) - 4;
         }
     }
 
     fn bgez(&mut self, rs: u8, offset: u16) {
         if self.register_file[rs as usize].read() as i32 >= 0 {
             let target = (offset as i16 as i32) << 2;
-            self.pc = self.pc.wrapping_add_signed(target);
+            self.pc = self.pc.wrapping_add_signed(target) - 4;
         }
     }
 
@@ -584,28 +612,28 @@ impl Cpu {
         self.register_file[31].write(self.pc + 8);
         if self.register_file[rs as usize].read() as i32 >= 0 {
             let target = (offset as i16 as i32) << 2;
-            self.pc = self.pc.wrapping_add_signed(target);
+            self.pc = self.pc.wrapping_add_signed(target) - 4;
         }
     }
 
     fn bgtz(&mut self, rs: u8, offset: u16) {
         if self.register_file[rs as usize].read() as i32 > 0 {
             let target = (offset as i16 as i32) << 2;
-            self.pc = self.pc.wrapping_add_signed(target);
+            self.pc = self.pc.wrapping_add_signed(target) - 4;
         }
     }
 
     fn blez(&mut self, rs: u8, offset: u16) {
         if self.register_file[rs as usize].read() as i32 <= 0 {
             let target = (offset as i16 as i32) << 2;
-            self.pc = self.pc.wrapping_add_signed(target);
+            self.pc = self.pc.wrapping_add_signed(target) - 4;
         }
     }
 
     fn bltz(&mut self, rs: u8, offset: u16) {
         if (self.register_file[rs as usize].read() as i32) < 0 {
             let target = (offset as i16 as i32) << 2;
-            self.pc = self.pc.wrapping_add_signed(target);
+            self.pc = self.pc.wrapping_add_signed(target) - 4;
         }
     }
 
@@ -614,14 +642,14 @@ impl Cpu {
         self.register_file[31].write(self.pc + 8);
         if (self.register_file[rs as usize].read() as i32) < 0 {
             let target = (offset as i16 as i32) << 2;
-            self.pc = self.pc.wrapping_add_signed(target);
+            self.pc = self.pc.wrapping_add_signed(target) - 4;
         }
     }
 
     fn bne(&mut self, rs: u8, rt: u8, offset: u16) {
         if self.register_file[rs as usize].read() != self.register_file[rt as usize].read() {
             let target = (offset as i16 as i32) << 2;
-            self.pc = self.pc.wrapping_add_signed(target);
+            self.pc = self.pc.wrapping_add_signed(target) - 4;
         }
     }
 
@@ -650,14 +678,14 @@ impl Cpu {
     }
 
     fn jal(&mut self, target: u32) {
-        self.register_file[31].write(self.pc + 8);
+        self.register_file[31].write(self.pc);
         self.pc = (self.pc & 0xf0000000) | (target << 2);
     }
 
     fn jalr(&mut self, rs: u8, rd: u8) -> Result<(), Exception> {
         let target = self.register_file[rs as usize].read();
 
-        self.register_file[rd as usize].write(self.pc + 8);
+        self.register_file[rd as usize].write(self.pc);
         self.pc = target;
 
         // TODO: when is this exception trapped?
