@@ -88,4 +88,7 @@ typedef struct {
   uint8_t sa;
   uint8_t function;
 } Instr;
+
+Instr decode(uint32_t instr);
+extern const char* mnemonic_strings[];
 #endif

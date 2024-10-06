@@ -38,66 +38,49 @@ uint8_t get_function(uint32_t instr) {
 Instr decode(uint32_t instr) {
   Instr res = {0};
   res.instr = instr;
+  res.opcode = get_opcode(instr);
+  res.rd = get_rd(instr);
+  res.rs = get_rs(instr);
+  res.rt = get_rt(instr);
+  res.immediate = get_immediate(instr);
+  res.instr_index = get_instr_index(instr);
+  res.sa = get_sa(instr);
+  res.function = get_function(instr);
 
-  uint8_t opcode = get_opcode(instr);
-  res.opcode = opcode;
-  switch (opcode) {
+  switch (res.opcode) {
     case 0x00:
-      ; uint8_t function = get_function(instr);
-      res.function = function;
-      switch (function) {
+      switch (res.function) {
         case 0x00:
           res.mnemonic = SLL;
-          res.rt = get_rt(instr);
-          res.rd = get_rd(instr);
-          res.sa = get_sa(instr);
           break;
 
         case 0x02:
           res.mnemonic = SRL;
-          res.rt = get_rt(instr);
-          res.rd = get_rd(instr);
-          res.sa = get_sa(instr);
           break;
 
         case 0x03:
           res.mnemonic = SRA;
-          res.rt = get_rt(instr);
-          res.rd = get_rd(instr);
-          res.sa = get_sa(instr);
           break;
 
         case 0x04:
           res.mnemonic = SLLV;
-          res.rs = get_rs(instr);
-          res.rt = get_rt(instr);
-          res.rd = get_rd(instr);
           break;
 
         
         case 0x06:
           res.mnemonic = SRLV;
-          res.rs = get_rs(instr);
-          res.rt = get_rt(instr);
-          res.rd = get_rd(instr);
           break;
 
         case 0x07:
           res.mnemonic = SRAV;
-          res.rs = get_rs(instr);
-          res.rt = get_rt(instr);
-          res.rd = get_rd(instr);
           break;
 
         case 0x08:
           res.mnemonic = JR;
-          res.rs = get_rs(instr);
           break;
 
         case 0x09:
           res.mnemonic = JALR;
-          res.rs = get_rs(instr);
-          res.rd = get_rd(instr);
           break;
 
         case 0x0c:
@@ -110,241 +93,323 @@ Instr decode(uint32_t instr) {
 
         case 0x10:
           res.mnemonic = MFHI;
-          res.rd = get_rd(instr);
           break;
 
         case 0x11:
           res.mnemonic = MTHI;
-          res.rs = get_rd(instr);
           break;
 
         case 0x12:
           res.mnemonic = MFLO;
-          res.rd = get_rd(instr);
           break;
 
         case 0x13:
           res.mnemonic = MTLO;
-          res.rs = get_rd(instr);
           break;
 
         case 0x18:
           res.mnemonic = MULT;
-          res.rs = get_rs(instr);
-          res.rt = get_rt(instr);
           break;
 
         case 0x19:
           res.mnemonic = MULTU;
-          res.rs = get_rs(instr);
-          res.rt = get_rt(instr);
           break;
 
         case 0x1a:
           res.mnemonic = DIV;
-          res.rs = get_rs(instr);
-          res.rt = get_rt(instr);
           break;
 
         case 0x1b:
           res.mnemonic = DIVU;
-          res.rs = get_rs(instr);
-          res.rt = get_rt(instr);
           break;
 
         case 0x20:
           res.mnemonic = ADD;
-          res.rs = get_rs(instr);
-          res.rt = get_rt(instr);
-          res.rd = get_rd(instr);
           break;
 
         case 0x21:
           res.mnemonic = ADDU;
-          res.rs = get_rs(instr);
-          res.rt = get_rt(instr);
-          res.rd = get_rd(instr);
           break;
 
         case 0x22:
           res.mnemonic = SUB;
-          res.rs = get_rs(instr);
-          res.rt = get_rt(instr);
-          res.rd = get_rd(instr);
           break;
 
         case 0x23:
           res.mnemonic = SUBU;
-          res.rs = get_rs(instr);
-          res.rt = get_rt(instr);
-          res.rd = get_rd(instr);
           break;
 
         case 0x24:
           res.mnemonic = AND;
-          res.rs = get_rs(instr);
-          res.rt = get_rt(instr);
-          res.rd = get_rd(instr);
           break;
         case 0x25:
           res.mnemonic = OR;
-          res.rs = get_rs(instr);
-          res.rt = get_rt(instr);
-          res.rd = get_rd(instr);
           break;
 
         case 0x26:
           res.mnemonic = XOR;
-          res.rs = get_rs(instr);
-          res.rt = get_rt(instr);
-          res.rd = get_rd(instr);
           break;
 
         case 0x27:
           res.mnemonic = NOR;
-          res.rs = get_rs(instr);
-          res.rt = get_rt(instr);
-          res.rd = get_rd(instr);
           break;
 
         case 0x2a:
           res.mnemonic = SLT;
-          res.rs = get_rs(instr);
-          res.rt = get_rt(instr);
-          res.rd = get_rd(instr);
           break;
 
         case 0x2b:
           res.mnemonic = SLTU;
-          res.rs = get_rs(instr);
-          res.rt = get_rt(instr);
-          res.rd = get_rd(instr);
           break;
 
         default:
-          fprintf(stderr, "Reserved instrucion decoded %02x %02x\n", opcode, function);
+          fprintf(stderr, "Reserved instrucion decoded opcode:%02x function:%02x\n", res.opcode, res.function);
       }
       break;
 
     case 0x01:
-      ; uint8_t rt = get_rt(instr);
-      res.rt = rt;
-      switch (rt) {
+      switch (res.rt) {
         case 0x00:
           res.mnemonic = BLTZ;
-          res.rs = get_rs(instr);
-          res.immediate = get_immediate(instr);
           break;
 
         case 0x01:
           res.mnemonic = BGEZ;
-          res.rs = get_rs(instr);
-          res.immediate = get_immediate(instr);
           break;
 
         case 0x10:
           res.mnemonic = BLTZAL;
-          res.rs = get_rs(instr);
-          res.immediate = get_immediate(instr);
           break;
 
         case 0x11:
           res.mnemonic = BGEZAL;
-          res.rs = get_rs(instr);
-          res.immediate = get_immediate(instr);
           break;
+
+        default:
+          fprintf(stderr, "Reserved instruction decoded opcode:%02x rt:%02x\n", res.opcode, res.rt);
       }
       break;
 
     case 0x02:
       res.mnemonic = J;
-      res.instr_index = get_instr_index(instr);
       break;
 
     case 0x03:
       res.mnemonic = JAL;
-      res.instr_index = get_instr_index(instr);
       break;
 
     case 0x04:
+      res.mnemonic = BEQ;
       break;
+
     case 0x05:
+      res.mnemonic = BNE;
       break;
+
     case 0x06:
+      res.mnemonic = BLEZ;
       break;
+
     case 0x07:
+      res.mnemonic = BGTZ;
       break;
 
     case 0x08:
-      break;
-    case 0x09:
-      break;
-    case 0x0a:
-      break;
-    case 0x0b:
-      break;
-    case 0x0c:
-      break;
-    case 0x0d:
-      break;
-    case 0x0e:
-      break;
-    case 0x0f:
+      res.mnemonic = ADDI;
       break;
 
+    case 0x09:
+      res.mnemonic = ADDIU;
+      break;
+
+    case 0x0a:
+      res.mnemonic = SLTI;
+      break;
+
+    case 0x0b:
+      res.mnemonic = SLTIU;
+      break;
+
+    case 0x0c:
+      res.mnemonic = ANDI;
+      break;
+
+    case 0x0d:
+      res.mnemonic = ORI;
+      break;
+
+    case 0x0e:
+      res.mnemonic = XORI;
+      break;
+
+    case 0x0f:
+      res.mnemonic = LUI;
+      break;
+
+    // TODO: disassemble Coprocessor specific instructions
     case 0x10:
+      res.mnemonic = COP0;
       break;
+
     case 0x11:
+      res.mnemonic = COP1;
       break;
+
     case 0x12:
+      res.mnemonic = COP2;
       break;
+
     case 0x13:
+      res.mnemonic = COP3;
       break;
 
     case 0x20:
+      res.mnemonic = LB;
       break;
+
     case 0x21:
+      res.mnemonic = LH;
       break;
+
     case 0x22:
+      res.mnemonic = LWL;
       break;
+
     case 0x23:
+      res.mnemonic = LW;
       break;
+
     case 0x24:
+      res.mnemonic = LBU;
       break;
+
     case 0x25:
+      res.mnemonic = LHU;
       break;
+
     case 0x26:
+      res.mnemonic = LWR;
       break;
 
     case 0x28:
+      res.mnemonic = SB;
       break;
+
     case 0x29:
+      res.mnemonic = SH;
       break;
+
     case 0x2a:
+      res.mnemonic = SWL;
       break;
+
     case 0x2b:
+      res.mnemonic = SW;
       break;
 
     case 0x2e:
+      res.mnemonic = SWR;
       break;
 
     case 0x31:
+      res.mnemonic = LWC1;
       break;
+
     case 0x32:
+      res.mnemonic = LWC2;
       break;
+
     case 0x33:
+      res.mnemonic = LWC3;
       break;
 
     case 0x39:
+      res.mnemonic = SWC1;
       break;
+
     case 0x3a:
+      res.mnemonic = SWC2;
       break;
+
     case 0x3b:
+      res.mnemonic = SWC3;
       break;
 
     default:
-      fprintf(stderr, "Reserved instruction decode %02x\n", opcode);
+      fprintf(stderr, "Reserved instruction decoded opcode:%02x\n", res.opcode);
   }
 
-  return (Instr){0};
+  return res;
 }
+
+const char* mnemonic_strings[] = {
+  "RESERVED",
+  "ADD",
+  "ADDI",
+  "ADDIU",
+  "ADDU",
+  "AND",
+  "ANDI",
+  "BEQ",
+  "BGEZ",
+  "BGEZAL",
+  "BGTZ",
+  "BLEZ",
+  "BLTZ",
+  "BLTZAL",
+  "BNE",
+  "BREAK",
+  "COP0",
+  "COP1",
+  "COP2",
+  "COP3",
+  "DIV",
+  "DIVU",
+  "J",
+  "JAL",
+  "JALR",
+  "JR",
+  "LB",
+  "LBU",
+  "LH",
+  "LHU",
+  "LUI",
+  "LW",
+  "LWC1",
+  "LWC2",
+  "LWC3",
+  "LWL",
+  "LWR",
+  "MFHI",
+  "MFLO",
+  "MTHI",
+  "MTLO",
+  "MULT",
+  "MULTU",
+  "NOR",
+  "OR",
+  "ORI",
+  "SB",
+  "SH",
+  "SLL",
+  "SLLV",
+  "SLT",
+  "SLTI",
+  "SLTIU",
+  "SLTU",
+  "SRA",
+  "SRAV",
+  "SRL",
+  "SRLV",
+  "SUB",
+  "SUBU",
+  "SW",
+  "SWC1",
+  "SWC2",
+  "SWC3",
+  "SWL",
+  "SWR",
+  "SYSCALL",
+  "XOR",
+  "XORI"
+};
