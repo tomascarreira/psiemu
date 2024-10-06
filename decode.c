@@ -1,7 +1,7 @@
 #include <stdio.h>
 #include <inttypes.h>
 
-#include "decode.h"
+#include "common.h"
 
 uint8_t get_opcode(uint32_t instr) {
   return instr >> 26;
@@ -341,75 +341,3 @@ Instr decode(uint32_t instr) {
 
   return res;
 }
-
-const char* mnemonic_strings[] = {
-  "RESERVED",
-  "ADD",
-  "ADDI",
-  "ADDIU",
-  "ADDU",
-  "AND",
-  "ANDI",
-  "BEQ",
-  "BGEZ",
-  "BGEZAL",
-  "BGTZ",
-  "BLEZ",
-  "BLTZ",
-  "BLTZAL",
-  "BNE",
-  "BREAK",
-  "COP0",
-  "COP1",
-  "COP2",
-  "COP3",
-  "DIV",
-  "DIVU",
-  "J",
-  "JAL",
-  "JALR",
-  "JR",
-  "LB",
-  "LBU",
-  "LH",
-  "LHU",
-  "LUI",
-  "LW",
-  "LWC1",
-  "LWC2",
-  "LWC3",
-  "LWL",
-  "LWR",
-  "MFHI",
-  "MFLO",
-  "MTHI",
-  "MTLO",
-  "MULT",
-  "MULTU",
-  "NOR",
-  "OR",
-  "ORI",
-  "SB",
-  "SH",
-  "SLL",
-  "SLLV",
-  "SLT",
-  "SLTI",
-  "SLTIU",
-  "SLTU",
-  "SRA",
-  "SRAV",
-  "SRL",
-  "SRLV",
-  "SUB",
-  "SUBU",
-  "SW",
-  "SWC1",
-  "SWC2",
-  "SWC3",
-  "SWL",
-  "SWR",
-  "SYSCALL",
-  "XOR",
-  "XORI"
-};
